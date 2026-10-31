@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rules_rag 回归评测看板</title>
+<style>
+  :root{
+    --ink:#1b1f24; --ink2:#4a535e; --ink3:#78828e;
+    --line:#e3e7ec; --bg:#f6f7f9; --card:#ffffff;
+    --ok:#1f7a4d; --warn:#9a6a00; --bad:#a4232b; --accent:#2b5c9b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 64px}
+  header{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px}
+  h1{font-size:19px;margin:0 0 6px;font-weight:650;letter-spacing:.2px}
+  .meta{color:var(--ink3);font-size:12.5px}
+  .meta b{color:var(--ink2);font-weight:600}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:14px;margin-bottom:26px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:15px 16px}
+  .card .k{font-size:12.5px;color:var(--ink3);margin-bottom:8px}
+  .card .v{font-size:26px;font-weight:660;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .card .s{font-size:11.5px;color:var(--ink3);margin-top:7px}
+  .v.ok{color:var(--ok)} .v.warn{color:var(--warn)} .v.bad{color:var(--bad)}
+  h2{font-size:14.5px;font-weight:640;margin:30px 0 12px;padding-left:9px;
+    border-left:3px solid var(--accent)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);
+    vertical-align:top}
+  th{background:#fafbfc;color:var(--ink2);font-weight:600;font-size:12.5px;white-space:nowrap}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  .bar{position:relative;height:7px;background:#eef1f4;border-radius:4px;min-width:110px}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent)}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11.5px;
+    border:1px solid var(--line);color:var(--ink2);background:#fafbfc;white-space:nowrap}
+  .tag.bad{color:var(--bad);border-color:#f0d2d4;background:#fdf4f5}
+  .q{color:var(--ink)}
+  .sub{color:var(--ink3);font-size:12px}
+  .note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warn);
+    border-radius:8px;padding:13px 15px;color:var(--ink2);font-size:12.8px;margin-top:12px}
+  .empty{padding:26px;text-align:center;color:var(--ink3)}
+  footer{margin-top:34px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>rules_rag 回归评测看板</h1>
+    <div class="meta" id="meta">正在读取数据……</div>
+  </header>
+
+  <div class="cards" id="cards"></div>
+
+  <h2>分层指标</h2>
+  <div class="panel"><table id="groups"></table></div>
+
+  <div class="note" id="note">
+    口径说明：<b>条款引用准确率</b>取"结论里实际写出的条款号"，一句没引用则退回首条召回；
+    平台规则的层级编号互认（2.3 与 2.3.1 同族）。
+    <b>时效正确率</b>只统计"引用了正确条款"的题 —— 召回错条款属于检索错误，
+    已经由引用准确率记过一次，算进时效会让两个维度互相污染。
+    <b>拒答精确率</b>只把"库里确实没依据"算作拒答，L3 转人工不算。
+  </div>
+
+  <h2>失败 case</h2>
+  <div class="panel"><table id="fails"></table></div>
+
+  <footer>
+    数据来源：<code>reports/regression_latest.json</code>（由 <code>eval/run_regression.py</code> 生成）。
+    本页为纯静态文件，双击即可打开，不依赖服务端。
+  </footer>
+</div>
+
+<script src="dashboard_data.js"></script>
+<script>
+(function(){
+  var D = window.REG_DATA;
+  if (!D) {
+    document.getElementById('meta').textContent = '没有找到 dashboard_data.js，先跑 python eval/run_regression.py';
+    document.getElementById('groups').innerHTML = '<tr><td class="empty">无数据</td></tr>';
+    document.getElementById('fails').innerHTML = '<tr><td class="empty">无数据</td></tr>';
+    return;
+  }
+  var o = D.overall, e = D.env || {};
+
+  document.getElementById('meta').innerHTML =
+    '评测于 <b>' + D.generated_at + '</b>　样本 <b>' + D.samples + '</b> 条　' +
+    '评测集 <b>' + D.eval_set + '</b>　' +
+    '存储 <b>' + (e.db_backend||'-') + '</b>　' +
+    '向量 <b>' + (e.vector_backend||'-') + (e.vector_usable?'':'（编码器不可用，已降级）') + '</b>　' +
+    '精排 <b>' + (e.rerank?'on':'off') + '</b>　' +
+    '生成 <b>' + ((e.llm&&e.llm.model)||'template') + '</b>　' +
+    '低置信阈值 <b>' + (e.low_conf_threshold!=null?e.low_conf_threshold:'-') + '</b>';
+
+  function pct(v){ return (v===null||v===undefined) ? '—' : (v*100).toFixed(1) + '%'; }
+  function cls(v, good, bad){ if(v===null||v===undefined) return ''; return (bad!==undefined) ? (v<=bad?'ok':(v>=good?'bad':'')) : (v>=good?'ok':'bad'); }
+
+  var cards = [
+    {k:'条款引用准确率', v:pct(o.cite_accuracy), s:'门槛：不得比基线低 3pp', c:cls(o.cite_accuracy,0.9)},
+    {k:'时效正确率', v:pct(o.timeout_accuracy), s:'门槛：必须 100%（端到端 ' + pct(o.timeout_end2end) + '）', c:(o.timeout_accuracy===1?'ok':'bad')},
+    {k:'高风险漏答率', v:pct(o.l3_miss_rate), s:'门槛：必须 0%', c:(o.l3_miss_rate===0?'ok':'bad')},
+    {k:'拒答精确率', v:pct(o.refusal_precision), s:'边界题拒答召回 ' + pct(o.boundary_refusal_recall), c:cls(o.refusal_precision,0.9)},
+    {k:'P95 延迟', v:(o.p95_ms!=null?o.p95_ms:'—') + ' ms', s:'P50 ' + (o.p50_ms!=null?o.p50_ms:'—') + ' ms / 均值 ' + (o.avg_ms!=null?o.avg_ms:'—') + ' ms', c:''},
+    {k:'token 成本', v:(o.token_cost_per_query!=null?o.token_cost_per_query:'—'), s:'每问 token；LLM 调用 ' + (o.llm_calls||0) + ' 次', c:''}
+  ];
+  document.getElementById('cards').innerHTML = cards.map(function(c){
+    return '<div class="card"><div class="k">' + c.k + '</div>' +
+           '<div class="v ' + c.c + '">' + c.v + '</div>' +
+           '<div class="s">' + c.s + '</div></div>';
+  }).join('');
+
+  var g = D.groups || {}, rows = ['<tr><th>分层</th><th>条数</th><th>引用准确率</th><th>召回率@5</th><th>时效正确率</th><th>转人工率</th><th>均耗时</th></tr>'];
+  Object.keys(g).forEach(function(name){
+    var s = g[name];
+    rows.push('<tr><td>' + name + '</td>' +
+      '<td class="num">' + s.n + '</td>' +
+      '<td class="num">' + pct(s.cite_accuracy) + '<div class="bar"><i style="width:' + ((s.cite_accuracy||0)*100) + '%"></i></div></td>' +
+      '<td class="num">' + pct(s.recall_at5) + '<div class="bar"><i style="width:' + ((s.recall_at5||0)*100) + '%"></i></div></td>' +
+      '<td class="num">' + pct(s.timeout_accuracy) + '</td>' +
+      '<td class="num">' + pct(s.handoff_rate) + '</td>' +
+      '<td class="num">' + s.avg_ms + ' ms</td></tr>');
+  });
+  document.getElementById('groups').innerHTML = rows.join('');
+
+  var f = D.failures || [];
+  var head = '<tr><th style="width:58px">编号</th><th style="width:96px">分层</th>' +
+             '<th>问题</th><th style="width:190px">问题类型</th>' +
+             '<th style="width:130px">gold</th><th style="width:200px">实际召回</th></tr>';
+  if (!f.length) {
+    document.getElementById('fails').innerHTML = head + '<tr><td colspan="6" class="empty">全部通过，没有失败 case</td></tr>';
+  } else {
+    document.getElementById('fails').innerHTML = head + f.slice(0,60).map(function(x){
+      return '<tr><td class="num">' + x.id + '</td>' +
+        '<td><span class="tag">' + x.group + '</span></td>' +
+        '<td class="q">' + x.question + '</td>' +
+        '<td><span class="tag bad">' + x.why + '</span></td>' +
+        '<td class="sub">' + (x.gold||'—') + '</td>' +
+        '<td class="sub">' + (x.got||'—') + '</td></tr>';
+    }).join('') +
+    (f.length>60 ? '<tr><td colspan="6" class="sub" style="padding:12px">共 ' + f.length + ' 条，此处显示前 60 条；全量见 reports/regression_latest.json</td></tr>' : '');
+  }
+})();
+</script>
+</body>
+</html>

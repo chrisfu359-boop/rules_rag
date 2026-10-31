@@ -1,0 +1,258 @@
+{
+ "generated_at": "2026-10-30 17:41:36",
+ "faq_total": 120,
+ "faq_with_alias_before": 75,
+ "faq_with_alias_after": 195,
+ "aliases_added": 120,
+ "probe": {
+  "n": 12,
+  "top1_before": 12,
+  "top1_after": 12,
+  "before": {
+   "buyer": {
+    "n": 8,
+    "top1": 8,
+    "pass_thr": 0,
+    "detail": [
+     {
+      "q": "我下单了什么时候能发货",
+      "got": "什么时候发货",
+      "score": 0.529,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "快递大概几天能送到",
+      "got": "几天能到",
+      "score": 0.286,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "你们一般发哪家快递公司",
+      "got": "发什么快递",
+      "score": 0.463,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "我着急能不能快点发货",
+      "got": "可以加急发货吗",
+      "score": 0.393,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "物流信息好几天不更新了",
+      "got": "物流一直不更新怎么办",
+      "score": 0.27,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "显示已签收但是我没拿到",
+      "got": "显示已签收但我没收到",
+      "score": 0.522,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "拍下之后多久出库",
+      "got": "拍下什么时候出库",
+      "score": 0.263,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "可以指定某一天再发货吗",
+      "got": "能不能指定某天发货",
+      "score": 0.381,
+      "hit": true,
+      "pass88": false
+     }
+    ]
+   },
+   "merchant": {
+    "n": 4,
+    "top1": 4,
+    "pass_thr": 1,
+    "detail": [
+     {
+      "q": "扣分节点到底怎么算",
+      "got": "扣分节点有哪些",
+      "score": 0.528,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "我店铺被判违规了要怎么申诉",
+      "got": "被判定违规怎么申诉",
+      "score": 0.357,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "申诉成功了之前扣的分会退吗",
+      "got": "申诉成功会退分吗",
+      "score": 0.502,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "店铺被暂停营业了怎么恢复",
+      "got": "店铺被暂停营业怎么恢复",
+      "score": 0.893,
+      "hit": true,
+      "pass88": true
+     }
+    ]
+   },
+   "_shape": [
+    "aliases",
+    "answer",
+    "audience",
+    "cat_scope",
+    "category",
+    "cov",
+    "cov_cnt",
+    "cov_idf",
+    "hit_count",
+    "id",
+    "keywords",
+    "matched",
+    "priority",
+    "question",
+    "raw",
+    "sat",
+    "shop_id",
+    "sim",
+    "source",
+    "status",
+    "updated_at"
+   ]
+  },
+  "after": {
+   "buyer": {
+    "n": 8,
+    "top1": 8,
+    "pass_thr": 0,
+    "detail": [
+     {
+      "q": "我下单了什么时候能发货",
+      "got": "什么时候发货",
+      "score": 0.532,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "快递大概几天能送到",
+      "got": "几天能到",
+      "score": 0.294,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "你们一般发哪家快递公司",
+      "got": "发什么快递",
+      "score": 0.467,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "我着急能不能快点发货",
+      "got": "可以加急发货吗",
+      "score": 0.472,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "物流信息好几天不更新了",
+      "got": "物流一直不更新怎么办",
+      "score": 0.276,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "显示已签收但是我没拿到",
+      "got": "显示已签收但我没收到",
+      "score": 0.522,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "拍下之后多久出库",
+      "got": "拍下什么时候出库",
+      "score": 0.262,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "可以指定某一天再发货吗",
+      "got": "能不能指定某天发货",
+      "score": 0.381,
+      "hit": true,
+      "pass88": false
+     }
+    ]
+   },
+   "merchant": {
+    "n": 4,
+    "top1": 4,
+    "pass_thr": 1,
+    "detail": [
+     {
+      "q": "扣分节点到底怎么算",
+      "got": "扣分节点有哪些",
+      "score": 0.522,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "我店铺被判违规了要怎么申诉",
+      "got": "被判定违规怎么申诉",
+      "score": 0.351,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "申诉成功了之前扣的分会退吗",
+      "got": "申诉成功会退分吗",
+      "score": 0.502,
+      "hit": true,
+      "pass88": false
+     },
+     {
+      "q": "店铺被暂停营业了怎么恢复",
+      "got": "店铺被暂停营业怎么恢复",
+      "score": 0.893,
+      "hit": true,
+      "pass88": true
+     }
+    ]
+   },
+   "_shape": [
+    "aliases",
+    "answer",
+    "audience",
+    "cat_scope",
+    "category",
+    "cov",
+    "cov_cnt",
+    "cov_idf",
+    "hit_count",
+    "id",
+    "keywords",
+    "matched",
+    "priority",
+    "question",
+    "raw",
+    "sat",
+    "shop_id",
+    "sim",
+    "source",
+    "status",
+    "updated_at"
+   ]
+  }
+ }
+}
