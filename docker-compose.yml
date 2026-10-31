@@ -1,0 +1,128 @@
+# ===== rules_rag 一键编排：app + MySQL + Redis + Milvus =====
+# 用法：docker compose up -d
+# 默认走「完整链路」：MySQL(3307) + Redis(6379) + Milvus(19530) + app(8000)。
+# 只想快速起一个 SQLite 降级版（不用外部依赖）：
+#   docker compose -f docker-compose.yml up -d app
+#   （此时 app 会因连不上 MySQL 自动降级 SQLite，Milvus 也降级 npz）
+
+services:
+  app:
+    build: .
+    container_name: rules_rag_app
+    ports:
+      - "8000:8000"
+    environment:
+      DB_BACKEND: mysql
+      VECTOR_BACKEND: milvus
+      RERANK: "off"                      # 容器内无 BGE 精排模型，关掉避免反复降级打印
+      MYSQL_HOST: mysql8
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: "123456"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "123456"
+      MILVUS_HOST: milvus
+      MILVUS_PORT: "19530"
+      # 上线必须改成真实域名：写死的白名单会让前端拿不到响应，
+      # 而报错出现在浏览器侧（CORS policy），服务端日志一切正常。
+      CORS_ORIGINS: "http://127.0.0.1:8000,http://localhost:8000"
+      # 留空表示 /api/ask 不校验 X-API-Key；对外暴露时请务必设置
+      API_KEY: ""
+    depends_on:
+      mysql8:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  mysql8:
+    image: mysql:8.0
+    container_name: rules_rag_mysql
+    ports:
+      - "3307:3306"                      # 宿主机 3307，容器内标准 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: rules_rag
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: rules_rag_redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "123456"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # Milvus 依赖 etcd + minio，这里用官方单机镜像（standalone）一并带上。
+  # 可选：注释掉这个 service，app 会自动降级 npz 本地向量。
+  milvus:
+    image: milvusdb/milvus:v2.4.4
+    container_name: rules_rag_milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    restart: unless-stopped
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: rules_rag_etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir /etcd
+    volumes:
+      - etcd_data:/etcd
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: rules_rag_minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: minio server /minio_data
+    volumes:
+      - minio_data:/minio_data
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  milvus_data:
+  etcd_data:
+  minio_data:

@@ -1,0 +1,36 @@
+# ===== 构建上下文排除 =====
+# 为什么必须有这个文件：Dockerfile 是 COPY . .，没有它的话
+# 仓库里任何体积垃圾都会被塞进镜像层，且**删不掉**（层是只读的）。
+# 本次实测：logs/ 里有 10520 个文件、1150 MB（Edge 浏览器 profile 被写进了 logs/）。
+
+# 版本库与 CI
+.git/
+.gitignore
+.github/
+
+# 运行时产物与浏览器 profile（1.15 GB 的来源）
+logs/
+*.log
+svc.log
+service*.log
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 密钥：绝不能进镜像层
+.env
+.jwt_secret
+
+# 体积大的派生数据（可由 pipeline 重建）
+data/raw/*.pdf
+data/processed/*.npz
+data/*.db-journal
+
+# 测试与临时
+*.bak
+*.tmp
+.tmp/
+dist/
+reports/shots/

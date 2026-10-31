@@ -1,0 +1,32 @@
+# 密钥不进版本库
+.env
+
+# 运行产物
+service.log
+service.out.log
+service.err.log
+svc.log
+logs/
+.jwt_secret
+*.pyc
+__pycache__/
+
+# 测试/临时数据库不进版本库（_board_e2e.db 等每次运行生成）
+*.db
+# SQLite WAL 运行时文件（common.py 开启 WAL 后产生，是运行时副产物）
+*.db-wal
+*.db-shm
+# 但「种子库」要进：4 套 e2e 都从它 copy 出测试库，是 CI 的硬前置。
+# 它由 pipeline/build_sqlite.py 确定性生成，3.3MB，进库比在 CI 里重建更稳。
+!data/rules.db
+
+# 数据产物（体积大，可由 pipeline 重建）
+data/raw/*.pdf
+data/processed/*.npz
+# 抓取探测残留（0 字节空文件，无内容价值）
+data/raw/_probe_wx.html
+
+# 构建产物（dist/ 是 zip 打包输出，不进版本库）
+dist/
+# 运行时告警日志（reports/alerts.log 由流水线写，不进版本库）
+reports/alerts.log

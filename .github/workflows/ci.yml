@@ -1,0 +1,97 @@
+# ===== rules_rag 自动回归 =====
+# 4 套端到端测试（客服 / 治理 / 板块 / 店铺隔离）在无 MySQL/Redis/Milvus 的
+# 干净环境里跑：SQLite 后端 + BM25 检索（向量/精排自动降级）。
+# 任一失败即红。
+#
+# 另有一个 eval job：300 条分层评测集 + 回归 + 门禁（与上线前同一条命令）。
+#
+# 前置：data/rules.db 种子库已入库（由 pipeline/build_sqlite.py 确定性生成）。
+
+name: e2e
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [cs_e2e, gov_e2e, board_e2e, v8_e2e]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 依赖只有一处来源：requirements.txt。
+          # 原来这里手写了一份清单，和文件里的版本会各自漂移 —— 两套必然不同步。
+          # 向量/精排需要本地 BGE 模型（约 2GB），CI 不装，链路自动降级 BM25。
+          pip install -r requirements.txt
+
+      - name: Verify seed DB
+        run: |
+          test -f data/rules.db || (echo "缺少 data/rules.db 种子库，先本地跑 python pipeline/build_sqlite.py" && exit 1)
+          ls -la data/rules.db
+
+      - name: Run ${{ matrix.suite }}
+        env:
+          # 显式关掉向量/精排，避免 CI 上反复降级打印，也保证链路确定性
+          RERANK: "off"
+          VECTOR_BACKEND: npz
+        run: |
+          # 每个套件自己 subprocess 拉起 uvicorn（SQLite 后端），跑完自停
+          python tests/${{ matrix.suite }}.py
+
+  # 评测门禁：和上线前跑的是同一条命令。
+  # gate 会比较"环境签名"（向量/精排/大模型开关）；与基线不一致时只校验两条硬红线，
+  # 不会因为换了环境就误报，也不会因为换环境而放过真正的回退。
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify eval set integrity
+        run: python eval/gen_eval_set.py --check
+
+      - name: Run regression
+        env:
+          RERANK: "off"
+          VECTOR_BACKEND: npz
+        run: python eval/run_regression.py
+
+      - name: Gate
+        run: python eval/gate.py
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-report
+          path: |
+            reports/regression_latest.json
+            reports/dashboard.html
+            reports/dashboard_data.js
