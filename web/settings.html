@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设置 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .sec { margin-bottom: 18px; }
+  .sec-desc { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .form-row { max-width: 460px; }
+  .theme-opts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .theme-opt {
+    flex: 1; min-width: 120px; padding: 12px 14px; border-radius: 9px; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface); transition: .15s;
+    text-align: left;
+  }
+  .theme-opt:hover { border-color: var(--muted); }
+  .theme-opt.on { border-color: var(--primary); background: var(--primary-weak); }
+  .theme-opt .t { font-size: 13px; font-weight: 600; }
+  .theme-opt .d { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 10px 14px; font-size: 13.5px; }
+  .kv .k { color: var(--muted); }
+  .danger-zone { border-color: var(--danger); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">规</div>
+      <div><div class="brand-txt">丰贸电商平台</div><div class="brand-sub" id="ruleVer">规则库 —</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item active" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item" href="/admin" data-nav="/admin"><span class="ico">⛨</span>系统管理</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar"><h2>设置</h2></div>
+    <div class="content">
+      <div class="content narrow" style="padding:0">
+
+        <!-- 账号概览 -->
+        <div class="card sec">
+          <div class="card-head"><h3>账号</h3></div>
+          <div class="card-body">
+            <div class="row" style="gap:14px;margin-bottom:18px">
+              <div class="avatar" id="avatar" style="width:46px;height:46px;font-size:18px"></div>
+              <div>
+                <div style="font-size:16px;font-weight:600" id="uName">—</div>
+                <div class="small muted" id="uRole">—</div>
+              </div>
+            </div>
+            <div class="kv">
+              <div class="k">用户名</div><div id="uLogin">—</div>
+              <div class="k">邮箱</div><div id="uEmail">—</div>
+              <div class="k">所属店铺</div><div id="uShop">—</div>
+              <div class="k">注册时间</div><div id="uCreated">—</div>
+              <div class="k">上次登录</div><div id="uLast">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 资料 -->
+        <div class="card sec">
+          <div class="card-head">
+            <div><h3>个人资料</h3><div class="sec-desc">昵称会显示在侧边栏和审计日志里</div></div>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="field">
+                <label>昵称</label>
+                <input class="input" id="fName" maxlength="60">
+              </div>
+              <div class="field">
+                <label>邮箱</label>
+                <input class="input" id="fEmail" type="email">
+              </div>
+              <button class="btn btn-primary" id="btnProfile">保存资料</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 偏好 -->
+        <div class="card sec">
+          <div class="card-head">
+            <div><h3>使用偏好</h3><div class="sec-desc">主题只影响本机浏览器，不写入服务端</div></div>
+          </div>
+          <div class="card-body">
+            <div class="field">
+              <label>界面主题</label>
+              <div class="theme-opts" id="themeOpts">
+                <div class="theme-opt" data-t="auto"><div class="t">跟随系统</div><div class="d">随系统深浅色切换</div></div>
+                <div class="theme-opt" data-t="light"><div class="t">浅色</div><div class="d">明亮背景</div></div>
+                <div class="theme-opt" data-t="dark"><div class="t">深色</div><div class="d">暗色背景</div></div>
+              </div>
+            </div>
+            <div class="grid-2 form-row" style="max-width:640px">
+              <div class="field">
+                <label>默认场景</label>
+                <select class="select" id="fScene">
+                  <option value="">自动识别</option>
+                  <option value="after_sale">售后/退换</option>
+                  <option value="logistics">物流/发货</option>
+                  <option value="ad_compliance">广告合规</option>
+                  <option value="product_info">商品信息</option>
+                  <option value="penalty">违规/处罚</option>
+                </select>
+                <div class="hint">新建会话时预选，仍可在输入框旁临时改</div>
+              </div>
+              <div class="field">
+                <label>回答风格</label>
+                <select class="select" id="fStyle">
+                  <option value="business">业务口径（默认）</option>
+                  <option value="strict">严格引用（多列原文）</option>
+                  <option value="brief">精简结论</option>
+                </select>
+                <div class="hint">影响生成提示词的组织方式</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btnPref">保存偏好</button>
+          </div>
+        </div>
+
+        <!-- 店铺 -->
+        <div class="card sec">
+          <div class="card-head">
+            <div><h3>店铺信息</h3><div class="sec-desc">用于门店维度的合规提醒（当前版本仅作展示）</div></div>
+          </div>
+          <div class="card-body">
+            <div class="grid-2 form-row" style="max-width:640px">
+              <div class="field"><label>店铺名称</label><input class="input" id="sName"></div>
+              <div class="field">
+                <label>所属平台</label>
+                <select class="select" id="sPlatform">
+                  <option>淘宝</option><option>天猫</option><option>抖音</option>
+                  <option>拼多多</option><option>京东</option><option>快手</option><option>小红书</option>
+                </select>
+              </div>
+              <div class="field"><label>主营类目</label><input class="input" id="sCategory" placeholder="如：家居/家纺"></div>
+              <div class="field"><label>联系电话</label><input class="input" id="sPhone" placeholder="选填"></div>
+            </div>
+            <button class="btn btn-primary" id="btnShop">保存店铺</button>
+          </div>
+        </div>
+
+        <!-- 安全 -->
+        <div class="card sec">
+          <div class="card-head">
+            <div><h3>安全</h3><div class="sec-desc">修改密码后当前会话仍然有效，其它设备需重新登录</div></div>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="field"><label>当前密码</label><input class="input" id="pOld" type="password" autocomplete="current-password"></div>
+              <div class="field"><label>新密码</label><input class="input" id="pNew" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字"></div>
+              <div class="field"><label>确认新密码</label><input class="input" id="pNew2" type="password" autocomplete="new-password"></div>
+              <button class="btn btn-primary" id="btnPwd">修改密码</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 退出 -->
+        <div class="card sec danger-zone">
+          <div class="card-head"><h3 style="color:var(--danger)">退出登录</h3></div>
+          <div class="card-body">
+            <p class="small muted mb-16">退出后需要重新输入用户名和密码。</p>
+            <button class="btn btn-danger" id="btnLogout">退出当前账号</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let me = null, data = null;
+
+init();
+
+async function init() {
+  me = await initShell();
+  data = await api("/api/settings", { quiet: true });
+  fill();
+}
+
+function fill() {
+  const u = data.user, p = data.pref || {}, s = data.shop || {};
+  const initial = (u.display_name || u.username).slice(0, 1).toUpperCase();
+
+  const av = $("#avatar");
+  av.textContent = initial;
+  av.style.background = u.avatar_color || "#4f7cff";
+
+  $("#uName").textContent = u.display_name || u.username;
+  $("#uRole").textContent = `${u.role_label}${u.shop_name ? " · " + u.shop_name : ""}`;
+  $("#uLogin").textContent = u.username;
+  $("#uEmail").textContent = u.email;
+  $("#uShop").textContent = u.shop_name || "未绑定";
+  $("#uCreated").textContent = fmtFull(u.created_at);
+  $("#uLast").textContent = u.last_login_at ? fmtFull(u.last_login_at) : "首次登录";
+
+  $("#fName").value = u.display_name || "";
+  $("#fEmail").value = u.email || "";
+
+  $("#fScene").value = p.default_scene || "";
+  $("#fStyle").value = p.answer_style || "business";
+
+  $("#sName").value = s.name || "";
+  $("#sPlatform").value = s.platform || "淘宝";
+  $("#sCategory").value = s.category || "";
+  $("#sPhone").value = s.contact_phone || "";
+
+  const cur = localStorage.getItem("rr_theme") || "auto";
+  $$("#themeOpts .theme-opt").forEach(el => el.classList.toggle("on", el.dataset.t === cur));
+}
+
+$$("#themeOpts .theme-opt").forEach(el => el.addEventListener("click", () => {
+  applyTheme(el.dataset.t);
+  $$("#themeOpts .theme-opt").forEach(x => x.classList.toggle("on", x === el));
+  toast("主题已切换", "ok", 1500);
+}));
+
+$("#btnProfile").addEventListener("click", async () => {
+  const btn = $("#btnProfile");
+  btn.disabled = true;
+  try {
+    await api("/api/settings/profile", {
+      method: "PUT",
+      body: { display_name: $("#fName").value.trim(), email: $("#fEmail").value.trim() },
+    });
+    toast("资料已保存", "ok");
+    data = await api("/api/settings", { quiet: true });
+    fill();
+    const { user } = await getMe(true);
+    const initial = (user.display_name || user.username).slice(0, 1).toUpperCase();
+    $("#userChip").querySelector(".avatar").textContent = initial;
+    $("#userChip").querySelector(".user-name").textContent = user.display_name || user.username;
+  } catch (e) { /* toast 已提示 */ }
+  btn.disabled = false;
+});
+
+$("#btnPref").addEventListener("click", async () => {
+  const btn = $("#btnPref");
+  btn.disabled = true;
+  try {
+    await api("/api/settings/pref", {
+      method: "PUT",
+      body: {
+        theme: localStorage.getItem("rr_theme") || "auto",
+        default_scene: $("#fScene").value,
+        answer_style: $("#fStyle").value,
+      },
+    });
+    toast("偏好已保存", "ok");
+  } catch (e) {}
+  btn.disabled = false;
+});
+
+$("#btnShop").addEventListener("click", async () => {
+  const btn = $("#btnShop");
+  btn.disabled = true;
+  try {
+    await api("/api/settings/shop", {
+      method: "PUT",
+      body: {
+        name: $("#sName").value.trim(),
+        platform: $("#sPlatform").value,
+        category: $("#sCategory").value.trim(),
+        contact_phone: $("#sPhone").value.trim(),
+      },
+    });
+    toast("店铺信息已保存", "ok");
+    data = await api("/api/settings", { quiet: true });
+    fill();
+  } catch (e) {}
+  btn.disabled = false;
+});
+
+$("#btnPwd").addEventListener("click", async () => {
+  const oldp = $("#pOld").value, np = $("#pNew").value, np2 = $("#pNew2").value;
+  if (!oldp || !np) return toast("请填写完整", "err");
+  if (np !== np2) return toast("两次输入的新密码不一致", "err");
+  if (np.length < 8) return toast("新密码至少 8 位", "err");
+  if (!/[A-Za-z]/.test(np) || !/\d/.test(np)) return toast("新密码需同时包含字母和数字", "err");
+
+  const btn = $("#btnPwd");
+  btn.disabled = true;
+  try {
+    await api("/api/auth/password", { method: "POST", body: { old_password: oldp, new_password: np } });
+    toast("密码已修改", "ok");
+    $("#pOld").value = $("#pNew").value = $("#pNew2").value = "";
+  } catch (e) {}
+  btn.disabled = false;
+});
+
+$("#btnLogout").addEventListener("click", async () => {
+  if (await confirmBox("退出登录", "确定要退出当前账号吗？", "退出", true)) logout();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系统管理 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .tabs2 { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .tab2 {
+    padding: 9px 15px; border: none; background: none; cursor: pointer;
+    font-size: 13.5px; color: var(--text-2); border-bottom: 2px solid transparent;
+    margin-bottom: -1px; font-weight: 500;
+  }
+  .tab2:hover { color: var(--text); }
+  .tab2.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .pane { display: none; }
+  .pane.active { display: block; animation: fadeIn .16s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .role-tag { font-size: 11.5px; padding: 1px 7px; border-radius: 5px; font-weight: 600; }
+  .role-admin { background: var(--purple-weak); color: var(--purple); }
+  .role-ops { background: var(--primary-weak); color: var(--primary); }
+  .role-merchant { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+  .st-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; }
+  .st-active { background: var(--ok); }
+  .st-disabled { background: var(--danger); }
+  .cfg-row { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .cfg-row:last-child { border-bottom: none; }
+  .cfg-k { font-size: 13px; color: var(--text-2); }
+  .cfg-k code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .cfg-hint { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .mono-cell { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text-2); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">规</div>
+      <div><div class="brand-txt">丰贸电商平台</div><div class="brand-sub">系统管理</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item active" href="/admin" data-nav="/admin"><span class="ico">⛨</span>系统管理</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2>系统管理</h2>
+      <span class="pill">账号 · 模型 · 审计</span>
+      <div class="spacer"></div>
+      <span class="pill">数据库 <b id="dbBackend">—</b></span>
+    </div>
+
+    <div class="content">
+      <div class="hint" style="margin-bottom:14px;line-height:1.75">
+        这里只管系统本身：谁能登录、用哪个模型、操作有没有留痕，<b>不参与任何业务裁决</b>。
+        纠纷仲裁、处罚、申诉在「平台监管」——那是平台运营（ops）的工作面，两者权限不通用：
+        管理员可以改模型配置，但不能替仲裁员下裁决。
+      </div>
+      <div class="grid-4 mb-16" id="metrics"></div>
+
+      <div class="tabs2">
+        <button class="tab2 active" data-p="users">用户管理</button>
+        <button class="tab2" data-p="config">模型配置</button>
+        <button class="tab2" data-p="audit">审计日志</button>
+        <button class="tab2" data-p="metric">系统指标</button>
+      </div>
+
+      <!-- 系统指标 -->
+      <div class="pane" id="pane-metric">
+        <div class="grid-2" style="align-items:start">
+          <div class="card">
+            <div class="card-head"><h3>条款风险分布</h3>
+              <span class="small muted">L1 可直接答 / L2 需条款 / L3 转人工</span></div>
+            <div class="card-body" id="sysRiskChart"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>用户角色分布</h3></div>
+            <div class="card-body" id="sysRoleChart"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-head"><h3>运行时状态</h3>
+            <span class="small muted">检索/精排/大模型/缓存的真实开关</span></div>
+          <div class="card-body" id="sysRuntime"></div>
+        </div>
+      </div>
+
+      <!-- 用户 -->
+      <div class="pane active" id="pane-users">
+        <div class="card">
+          <div class="card-head">
+            <h3>用户列表</h3>
+            <div class="row">
+              <input class="input" id="uq" placeholder="搜索用户名/邮箱/昵称" style="width:220px;height:32px">
+              <select class="select" id="urole" style="width:auto;height:32px">
+                <option value="">全部角色</option>
+                <option value="merchant">商家</option>
+                <option value="ops">平台运营</option>
+                <option value="admin">管理员</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead><tr>
+                <th>用户</th><th>邮箱</th><th>角色</th><th>店铺</th>
+                <th>状态</th><th>注册时间</th><th>上次登录</th><th style="text-align:right">操作</th>
+              </tr></thead>
+              <tbody id="userRows"><tr><td colspan="8" class="muted" style="text-align:center;padding:30px">加载中…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配置 -->
+      <div class="pane" id="pane-config">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <div><h3>大模型接入</h3>
+                <div class="small muted" style="margin-top:3px">修改后立即写入 .env 并热重载，不需要重启服务</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="cfg-row">
+                <div class="cfg-k"><code>LLM</code><div class="cfg-hint">总开关</div></div>
+                <select class="select" id="cLLM">
+                  <option value="auto">auto（按配置启用）</option>
+                  <option value="off">off（强制模板）</option>
+                </select>
+              </div>
+              <div class="cfg-row">
+                <div class="cfg-k"><code>LLM_PROVIDER</code><div class="cfg-hint">预设厂商</div></div>
+                <select class="select" id="cProvider">
+                  <option value="">（自定义 / 未设置）</option>
+                  <option value="deepseek">deepseek</option>
+                  <option value="dashscope">dashscope（通义）</option>
+                  <option value="moonshot">moonshot（Kimi）</option>
+                  <option value="zhipu">zhipu（GLM）</option>
+                  <option value="openai">openai</option>
+                  <option value="ollama">ollama（本地）</option>
+                </select>
+              </div>
+              <div class="cfg-row">
+                <div class="cfg-k"><code>LLM_BASE_URL</code><div class="cfg-hint">自定义时填，写到 /v1</div></div>
+                <input class="input" id="cBase" placeholder="https://api.deepseek.com/v1">
+              </div>
+              <div class="cfg-row">
+                <div class="cfg-k"><code>LLM_MODEL</code><div class="cfg-hint">留空用预设默认</div></div>
+                <input class="input" id="cModel" placeholder="deepseek-chat">
+              </div>
+              <div class="cfg-row">
+                <div class="cfg-k"><code>LLM_API_KEY</code><div class="cfg-hint">只显示末四位；不改就保持原样</div></div>
+                <input class="input" id="cKey" placeholder="sk-...">
+              </div>
+              <div class="row mt-16">
+                <button class="btn btn-primary" id="btnSaveCfg">保存配置</button>
+                <button class="btn" id="btnTestCfg">测试连通</button>
+                <span class="small muted" id="cfgStatus"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>当前生效</h3></div>
+            <div class="card-body">
+              <div class="kv" style="display:grid;grid-template-columns:110px 1fr;gap:10px 14px;font-size:13.5px">
+                <div class="muted">厂商</div><div id="eProvider">—</div>
+                <div class="muted">模型</div><div id="eModel">—</div>
+                <div class="muted">接口地址</div><div class="mono-cell" id="eBase">—</div>
+                <div class="muted">可用</div><div id="eAvail">—</div>
+                <div class="muted">调用次数</div><div id="eCalls">—</div>
+                <div class="muted">累计 token</div><div id="eTokens">—</div>
+              </div>
+              <div class="a-notice mt-16" style="background:var(--primary-weak);border-left:3px solid var(--primary);padding:10px 12px;border-radius:7px;font-size:12.5px;color:var(--text-2);line-height:1.8">
+                未配置时系统走模板抽取，答复仍然可核对，但语言不如模型自然。
+                生成结果都会过引用校验：模型编造条款号会被拦截并退回模板。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 审计 -->
+      <div class="pane" id="pane-audit">
+        <div class="card">
+          <div class="card-head">
+            <h3>审计日志</h3>
+            <div class="row">
+              <select class="select" id="aAction" style="width:auto;height:32px">
+                <option value="">全部操作</option>
+                <option value="login">登录</option>
+                <option value="login_fail">登录失败</option>
+                <option value="register">注册</option>
+                <option value="logout">退出</option>
+                <option value="change_password">修改密码</option>
+                <option value="admin_user_status">用户启停</option>
+                <option value="admin_user_role">角色调整</option>
+                <option value="admin_config">配置变更</option>
+              </select>
+              <button class="btn btn-sm" id="btnAudit">刷新</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead><tr><th>时间</th><th>用户</th><th>操作</th><th>对象</th><th>IP</th><th>详情</th></tr></thead>
+              <tbody id="auditRows"><tr><td colspan="6" class="muted" style="text-align:center;padding:30px">加载中…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let metrics = null;
+
+init();
+
+async function init() {
+  await initShell();
+  metrics = await api("/api/admin/metrics", { quiet: true }).catch(() => null);
+  if (metrics) {
+    $("#dbBackend").textContent = metrics.db.backend;
+    const u = metrics.users || {}, f = metrics.feedback || {}, rt = metrics.runtime || {};
+    $("#metrics").innerHTML = `
+      ${stat("用户总数", u.total || 0, `${u.active || 0} 个启用`)}
+      ${stat("会话数", metrics.sessions?.n || 0, "全部用户")}
+      ${stat("消息数", metrics.messages?.n || 0, "含提问与回答")}
+      ${stat("反馈好评", (f.up || 0), `差评 ${f.down || 0} 条`)}`;
+    fillConfig(rt);
+    renderSysMetric(metrics);
+  }
+  loadUsers();
+  loadAudit();
+}
+
+function stat(k, v, s) {
+  return `<div class="card stat"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`;
+}
+
+function bar(label, n, max, color) {
+  return `<div style="display:flex;align-items:center;gap:10px;margin:8px 0">
+    <span class="mono" style="width:56px;font-size:12.5px">${esc(label)}</span>
+    <div style="flex:1;height:18px;background:var(--border);border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${(n / Math.max(max, 1) * 100).toFixed(1)}%;background:${color};transition:width .4s"></div>
+    </div>
+    <span class="mono" style="width:52px;text-align:right;font-size:12.5px">${n}</span>
+  </div>`;
+}
+
+/* 系统指标：条款风险分布 / 用户角色分布 / 运行时开关（零依赖 CSS 条形图） */
+function renderSysMetric(m) {
+  const risk = m.risk || [];
+  const maxR = Math.max(1, ...risk.map(r => r.n));
+  const rc = { L1: "#10b981", L2: "#f59e0b", L3: "#ef4444" };
+  $("#sysRiskChart").innerHTML = risk.map(r =>
+    bar(r.risk_level, r.n, maxR, rc[r.risk_level] || "#2b5c9b")).join("") ||
+    `<div class="hint">暂无</div>`;
+
+  const roles = m.users_by_role || [];
+  const maxU = Math.max(1, ...roles.map(r => r.n));
+  const roleCn = { buyer: "买家", merchant: "商家", ops: "平台运营", admin: "管理员" };
+  const ucol = { buyer: "#f59e0b", merchant: "#2b5c9b", ops: "#10b981", admin: "#a855f7" };
+  $("#sysRoleChart").innerHTML = roles.map(r =>
+    bar(roleCn[r.role] || r.role, r.n, maxU, ucol[r.role] || "#7b8794")).join("") ||
+    `<div class="hint">暂无</div>`;
+
+  const rt = m.runtime || {}, v = rt.vector || {}, rk = rt.rerank || {}, ll = rt.llm || {};
+  const onoff = b => b ? `<span class="badge L1">启用</span>` : `<span class="badge neutral">关闭/降级</span>`;
+  $("#sysRuntime").innerHTML = `
+    <div class="grid-4">
+      <div class="stat"><div class="k">现行条款</div><div class="v">${rt.clauses || 0}</div><div class="s">active 版本</div></div>
+      <div class="stat"><div class="k">向量通道</div><div class="v" style="font-size:14px">${onoff(v.loaded)}</div><div class="s">${esc(v.backend || "—")}</div></div>
+      <div class="stat"><div class="k">精排</div><div class="v" style="font-size:14px">${onoff(rk.enabled)}</div><div class="s">${esc(rk.model || "—")}</div></div>
+      <div class="stat"><div class="k">大模型</div><div class="v" style="font-size:14px">${onoff(ll.available)}</div><div class="s">${esc(ll.model || "模板生成")}</div></div>
+    </div>
+    <div class="hint" style="margin-top:12px">数据库 ${esc((m.db || {}).backend || "—")} · 规则版本 ${esc(rt.rule_version || "—")}</div>`;
+}
+
+$$(".tab2").forEach(b => b.addEventListener("click", () => {
+  $$(".tab2").forEach(x => x.classList.toggle("active", x === b));
+  $$(".pane").forEach(p => p.classList.toggle("active", p.id === "pane-" + b.dataset.p));
+}));
+
+/* ---------------- 用户 ---------------- */
+
+async function loadUsers() {
+  const q = $("#uq").value.trim();
+  const role = $("#urole").value;
+  const d = await api(`/api/admin/users?q=${encodeURIComponent(q)}&role=${role}&limit=100`, { quiet: true })
+    .catch(() => ({ items: [] }));
+  const rows = $("#userRows");
+  if (!d.items.length) {
+    rows.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:30px">没有匹配的用户</td></tr>`;
+    return;
+  }
+  rows.innerHTML = d.items.map(u => `
+    <tr>
+      <td>
+        <div class="row" style="gap:8px">
+          <div class="avatar" style="width:26px;height:26px;font-size:11px;background:${esc(u.avatar_color || "#4f7cff")}">
+            ${esc((u.display_name || u.username).slice(0, 1).toUpperCase())}
+          </div>
+          <div>
+            <div style="font-weight:500">${esc(u.display_name)}</div>
+            <div class="small muted">@${esc(u.username)}</div>
+          </div>
+        </div>
+      </td>
+      <td class="small">${esc(u.email)}</td>
+      <td><span class="role-tag role-${esc(u.role)}">${esc(u.role_label)}</span></td>
+      <td class="small muted">${esc(u.shop_name || "—")}</td>
+      <td><span class="st-dot ${u.status === "active" ? "st-active" : "st-disabled"}"></span>${u.status === "active" ? "启用" : "停用"}</td>
+      <td class="small muted nowrap">${esc(fmtFull(u.created_at))}</td>
+      <td class="small muted nowrap">${u.last_login_at ? esc(fmtTime(u.last_login_at)) : "—"}</td>
+      <td style="text-align:right">
+        <div class="row" style="justify-content:flex-end;gap:5px">
+          <select class="select" data-role="${u.id}" style="height:26px;width:auto;font-size:12px;padding:0 5px">
+            <option value="merchant" ${u.role === "merchant" ? "selected" : ""}>商家</option>
+            <option value="ops" ${u.role === "ops" ? "selected" : ""}>运营</option>
+            <option value="admin" ${u.role === "admin" ? "selected" : ""}>管理员</option>
+          </select>
+          <button class="btn btn-sm" data-toggle="${u.id}" data-status="${u.status}">
+            ${u.status === "active" ? "停用" : "启用"}
+          </button>
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+$("#userRows").addEventListener("change", async e => {
+  const sel = e.target.closest("[data-role]");
+  if (!sel) return;
+  try {
+    await api(`/api/admin/users/${sel.dataset.role}`, { method: "PATCH", body: { role: sel.value } });
+    toast("角色已更新", "ok");
+  } catch (err) { loadUsers(); }
+});
+
+$("#userRows").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-toggle]");
+  if (!btn) return;
+  const next = btn.dataset.status === "active" ? "disabled" : "active";
+  const word = next === "disabled" ? "停用" : "启用";
+  if (!await confirmBox(`${word}账号`, `确定要${word}该账号吗？${next === "disabled" ? "停用后该用户将无法登录。" : ""}`, word, next === "disabled")) return;
+  try {
+    await api(`/api/admin/users/${btn.dataset.toggle}`, { method: "PATCH", body: { status: next } });
+    toast(`已${word}`, "ok");
+    loadUsers();
+  } catch (err) {}
+});
+
+let ut = null;
+$("#uq").addEventListener("input", () => { clearTimeout(ut); ut = setTimeout(loadUsers, 260); });
+$("#urole").addEventListener("change", loadUsers);
+
+/* ---------------- 配置 ---------------- */
+
+async function fillConfig(rt) {
+  const c = await api("/api/admin/config", { quiet: true }).catch(() => null);
+  if (!c) return;
+  const env = c.env || {}, eff = c.effective || {};
+  $("#cLLM").value = env.LLM || "auto";
+  $("#cProvider").value = env.LLM_PROVIDER || "";
+  $("#cBase").value = env.LLM_BASE_URL || "";
+  $("#cModel").value = env.LLM_MODEL || "";
+  $("#cKey").value = env.LLM_API_KEY || "";
+  $("#cKey").placeholder = env.LLM_API_KEY ? "已配置（显示末四位），不改就留原值" : "sk-...";
+
+  $("#eProvider").textContent = eff.provider || "—";
+  $("#eModel").textContent = eff.model || "—";
+  $("#eBase").textContent = eff.base_url || "—";
+  $("#eAvail").innerHTML = eff.available
+    ? `<span style="color:var(--ok);font-weight:600">可用</span>`
+    : `<span style="color:var(--muted)">未启用（走模板）</span>`;
+  const l = (rt && rt.llm) || {};
+  $("#eCalls").textContent = l.calls ?? 0;
+  $("#eTokens").textContent = l.total_tokens ?? 0;
+  $("#cfgStatus").textContent = "";
+}
+
+$("#btnSaveCfg").addEventListener("click", async () => {
+  const btn = $("#btnSaveCfg");
+  btn.disabled = true;
+  try {
+    const r = await api("/api/admin/config", {
+      method: "PUT",
+      body: {
+        LLM: $("#cLLM").value,
+        LLM_PROVIDER: $("#cProvider").value,
+        LLM_BASE_URL: $("#cBase").value.trim(),
+        LLM_MODEL: $("#cModel").value.trim(),
+        LLM_API_KEY: $("#cKey").value.trim(),
+      },
+    });
+    toast(`已保存：${(r.changed || []).join(", ")}`, "ok");
+    $("#cfgStatus").textContent = r.available ? `已生效：${r.model}` : "已保存，但配置不完整，仍走模板";
+    metrics = await api("/api/admin/metrics", { quiet: true });
+    fillConfig(metrics?.runtime);
+  } catch (e) {}
+  btn.disabled = false;
+});
+
+$("#btnTestCfg").addEventListener("click", async () => {
+  const btn = $("#btnTestCfg");
+  btn.disabled = true;
+  $("#cfgStatus").textContent = "测试中…";
+  try {
+    const r = await api("/api/admin/config/test", { method: "POST" });
+    if (r.ok) {
+      toast(`连通成功：${r.model}（${r.ms}ms）`, "ok");
+      $("#cfgStatus").textContent = `连通成功 · 模型回复「${r.reply}」· ${r.ms}ms`;
+    } else {
+      toast(`不可用：${r.reason || r.error || "未知原因"}`, "err");
+      $("#cfgStatus").textContent = r.reason || r.error || "不可用";
+    }
+  } catch (e) {
+    $("#cfgStatus").textContent = "测试失败";
+  }
+  btn.disabled = false;
+});
+
+/* ---------------- 审计 ---------------- */
+
+async function loadAudit() {
+  const action = $("#aAction").value;
+  const d = await api(`/api/admin/audit?limit=200&action=${encodeURIComponent(action)}`, { quiet: true })
+    .catch(() => ({ items: [] }));
+  const rows = $("#auditRows");
+  if (!d.items.length) {
+    rows.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:30px">暂无记录</td></tr>`;
+    return;
+  }
+  const LABEL = {
+    login: "登录", login_fail: "登录失败", logout: "退出", register: "注册",
+    change_password: "修改密码", update_profile: "改资料", update_shop: "改店铺",
+    admin_user_status: "用户启停", admin_user_role: "角色调整", admin_config: "配置变更",
+  };
+  rows.innerHTML = d.items.map(a => `
+    <tr>
+      <td class="small muted nowrap">${esc(fmtFull(a.created_at))}</td>
+      <td class="small">${esc(a.username || "—")}</td>
+      <td><span class="badge ${a.action === "login_fail" ? "L3" : "neutral"}">${esc(LABEL[a.action] || a.action)}</span></td>
+      <td class="small">${esc(a.target || "—")}</td>
+      <td class="mono-cell">${esc(a.ip || "—")}</td>
+      <td class="small muted">${esc(a.detail || "")}</td>
+    </tr>`).join("");
+}
+
+$("#aAction").addEventListener("change", loadAudit);
+$("#btnAudit").addEventListener("click", () => { loadAudit(); toast("已刷新", "info", 1200); });
+</script>
+</body>
+</html>

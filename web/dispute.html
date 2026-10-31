@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>纠纷中心 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .pg { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .tabs { display: flex; gap: 2px; padding: 0 22px; border-bottom: 1px solid var(--border);
+          background: var(--surface); flex: none; }
+  .tab { padding: 9px 14px 10px; font-size: 13.5px; font-weight: 500; color: var(--text-2);
+         cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  .wrap { display: grid; grid-template-columns: 340px 1fr; width: 100%; overflow: hidden; }
+  .col { overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  .col + .col { border-left: 1px solid var(--border); }
+
+  .list-head { padding: 10px; border-bottom: 1px solid var(--border); flex: none; }
+  .list { flex: 1; overflow-y: auto; padding: 6px; }
+  .it { padding: 11px 12px; border-radius: 9px; cursor: pointer; margin-bottom: 3px;
+        border: 1px solid transparent; }
+  .it:hover { background: var(--surface-2); }
+  .it.on { background: var(--primary-weak); border-color: rgba(37,99,235,.25); }
+  .it-top { display: flex; align-items: center; gap: 6px; }
+  .it-title { font-size: 13px; font-weight: 600; flex: 1; min-width: 0;
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .it-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; }
+
+  .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 4px; font-weight: 600; flex: none; }
+  .tag.pending_human { background: var(--danger-weak); color: var(--danger); }
+  .tag.arbitrating { background: var(--warn-weak); color: var(--warn); }
+  .tag.resolved { background: var(--ok-weak); color: var(--ok); }
+  .tag.closed { background: var(--surface-2); color: var(--muted); }
+  .tag.overturned { background: var(--purple-weak); color: var(--purple); }
+
+  .detail { overflow-y: auto; padding: 20px 24px; }
+  .d-head { display: flex; align-items: flex-start; gap: 10px; }
+  .d-head h2 { font-size: 17px; line-height: 1.4; flex: 1; }
+  .d-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 14px; }
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .meta .m { background: var(--surface); border: 1px solid var(--border);
+             border-radius: 8px; padding: 9px 11px; }
+  .meta .k { font-size: 11px; color: var(--muted); }
+  .meta .v { font-size: 13.5px; font-weight: 600; margin-top: 1px; }
+
+  /* 订单事实：和平台端读的是同一份数据，双方看到的时效结论必须完全一致 */
+  .ofacts { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+  .ofact { font-size: 12.5px; color: var(--muted); }
+  .ofact b { font-weight: 600; color: var(--text); font-family: ui-monospace, Menlo, monospace;
+             font-size: 12px; }
+  .osla { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  /* 商品行与物流行：订单卡片里最能被当事人核对的两块事实 */
+  .oitem { display: flex; gap: 10px; align-items: baseline; padding: 9px 11px; margin-bottom: 10px;
+           border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+  .oitem .t { font-size: 13.5px; font-weight: 600; }
+  .oitem .s { font-size: 12px; color: var(--muted); }
+  .olog { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; padding-top: 9px;
+          border-top: 1px dashed var(--border); }
+
+  .ai { border: 1px solid var(--border); border-radius: var(--radius);
+        background: var(--surface); margin-bottom: 16px; overflow: hidden; }
+  .ai .hd { padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+            display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .ai .bd { padding: 14px; }
+  .conf-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 8px 0 6px; }
+  .conf-bar i { display: block; height: 100%; border-radius: 3px; }
+  .quote { border-left: 3px solid var(--primary); background: var(--primary-weak); padding: 10px 13px;
+           border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.75; }
+  .steps { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text-2); line-height: 1.75; }
+
+  .tl-item { display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
+  .tl-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+            font-size: 10px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.buyer { background: #f59e0b; }
+  .tl-dot.merchant { background: #0ea5a5; }
+  .tl-dot.ai { background: var(--primary); }
+  .tl-dot.arbiter { background: var(--ok); }
+  .tl-body { padding-bottom: 14px; border-left: 2px solid var(--border);
+             padding-left: 12px; margin-left: -12px; }
+  .tl-item:last-child .tl-body { border-left-color: transparent; padding-bottom: 0; }
+  .tl-who { font-size: 12px; color: var(--muted); }
+  .tl-txt { font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+
+  .evtags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ev-row { display: grid; grid-template-columns: 150px 1fr 34px; gap: 8px; margin-bottom: 8px; }
+  .hint-row { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .radio-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .type-card { border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+               cursor: pointer; font-size: 12.5px; flex: 1 1 180px; }
+  .type-card:hover { border-color: var(--border-strong); }
+  .type-card.on { border-color: var(--primary); background: var(--primary-weak); }
+  .type-card b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .type-card span { color: var(--muted); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⚖</div>
+      <div><div class="brand-txt">纠纷中心</div><div class="brand-sub">投诉 · 答辩 · 申诉</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item active" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item" href="/admin" data-nav="/admin"><span class="ico">◧</span>系统管理</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2>纠纷中心</h2>
+      <span class="pill" id="rolePill">—</span>
+      <div class="spacer"></div>
+      <button class="btn btn-sm" onclick="toggleTheme()">主题</button>
+      <!-- 「申请平台介入」是买家的维权入口。商家点它是投诉自己，运营点它是替别人投诉，
+           所以按钮先隐藏，等 initShell 拿到角色再决定是否显示。 -->
+      <button class="btn btn-primary btn-sm" id="btnNew" style="display:none"
+              onclick="openNew()">申请平台介入</button>
+    </div>
+
+    <div class="pg">
+      <div class="tabs">
+        <div class="tab active" data-scope="all">全部相关</div>
+        <div class="tab" data-scope="buyer">我发起的投诉</div>
+        <div class="tab" data-scope="shop" id="tabShop" style="display:none">针对本店的纠纷</div>
+      </div>
+      <div class="wrap">
+        <div class="col">
+          <div class="list-head">
+            <input class="input" id="q" placeholder="搜编号 / 标题" style="height:32px;font-size:12.5px">
+          </div>
+          <div class="list" id="list"></div>
+        </div>
+        <div class="col">
+          <div class="detail" id="detail">
+            <div class="empty"><div class="big">⚖</div>
+              <div>对商家的处理不满意？点右上角「申请平台介入」</div>
+              <div class="small">平台会先由 AI 调解员定责，复杂案件转人工仲裁</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let META = null, ME = null, CUR = null, SCOPE = "all", Q = "";
+
+const ST_LABEL = { pending_human: "待仲裁", arbitrating: "仲裁中", resolved: "已裁决",
+                   closed: "已关闭", overturned: "已改判" };
+const LIAB_LABEL = { merchant: "商家责任", buyer: "买家责任", shared: "双方分担",
+                     insufficient: "证据不足" };
+
+function stTag(s) { return `<span class="tag ${esc(s)}">${esc(ST_LABEL[s] || s)}</span>`; }
+
+/* ---------------- 新建投诉 ---------------- */
+let NEW_TYPE = "description";
+let NEW_EV = [];
+
+function openNew() {
+  const shops = META.shops.filter(s => !s.self && s.status !== "closed");
+  if (!shops.length) { toast("没有可投诉的店铺", "err"); return; }
+  NEW_TYPE = "description"; NEW_EV = [];
+  const mask = document.createElement("div");
+  mask.className = "modal-mask";
+  mask.innerHTML = `
+    <div class="modal" style="max-width:720px;width:92%">
+      <div class="modal-head">申请平台介入</div>
+      <div class="modal-body" style="max-height:66vh;overflow-y:auto">
+        <div class="field mb-8">
+          <label>被投诉店铺</label>
+          <select class="select" id="nShop">
+            ${shops.map(s => `<option value="${s.id}">${esc(s.name)}（${esc(s.platform)} · 信用 ${s.credit_score}）</option>`).join("")}
+          </select>
+        </div>
+        <div class="field mb-8">
+          <label>纠纷类型</label>
+          <div class="radio-row" id="nTypes">
+            ${META.types.map(t => `<div class="type-card ${t.key === "description" ? "on" : ""}"
+              data-k="${t.key}"><b>${esc(t.label)}</b><span>${esc(t.desc)}</span></div>`).join("")}
+          </div>
+          <div class="hint-row" id="nTypeHint"></div>
+        </div>
+        <div class="field mb-8">
+          <label>一句话说明问题</label>
+          <input class="input" id="nTitle" maxlength="100" placeholder="例：收到的杯子与页面描述材质不符">
+        </div>
+        <div class="field mb-8">
+          <label>详细诉求</label>
+          <textarea class="input" id="nClaim" rows="3"
+            placeholder="说明发生了什么、希望平台怎么处理"></textarea>
+        </div>
+        <div class="field mb-8">
+          <label>诉求金额（元）</label>
+          <input class="input" id="nAmount" type="number" min="0" step="0.01" value="0">
+        </div>
+        <div class="field mb-8">
+          <label>关联订单 <span class="small muted">（选了平台才能核验时效）</span></label>
+          <select class="select" id="nOrder">
+            <option value="">不关联订单（平台只能依据双方陈述判断）</option>
+          </select>
+          <div class="hint-row" id="nOrderHint">正在读取该店铺订单…</div>
+        </div>
+        <div class="field">
+          <label>凭证材料 <span class="small muted" id="nNeed"></span></label>
+          <div id="nEvRows"></div>
+          <button class="btn btn-sm" onclick="addEv()">+ 添加一项凭证</button>
+          <div class="hint-row">凭证越完整，AI 越可能当场判完；缺材料会转人工，处理更慢</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-no>取消</button>
+        <button class="btn btn-primary" data-yes>提交投诉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  const close = () => mask.remove();
+  mask.addEventListener("click", e => { if (e.target === mask || e.target.hasAttribute("data-no")) close(); });
+
+  mask.querySelectorAll(".type-card").forEach(c => c.onclick = () => {
+    mask.querySelectorAll(".type-card").forEach(x => x.classList.remove("on"));
+    c.classList.add("on"); NEW_TYPE = c.dataset.k; syncType();
+  });
+  const syncType = () => {
+    const t = META.types.find(x => x.key === NEW_TYPE) || {};
+    $("#nTypeHint", mask).innerHTML = t.clause
+      ? `依据《${esc(t.doc)}》${esc(t.clause)}，查实后扣 ${t.points} 分`
+      : `该类纠纷平台规则未设扣分标准，以整改为主`;
+    $("#nNeed", mask).textContent = (t.need || []).length
+      ? `建议提供：${t.need.join("、")}` : "";
+    NEW_EV = (t.need || []).map(k => ({ k, v: "" }));
+    renderEv(mask);
+  };
+  syncType();
+
+  // 换了被投诉店铺，可关联的订单也跟着换
+  $("#nShop", mask).onchange = () => loadOrders(mask);
+  // 从订单页「投诉」跳过来时（?order_no=&shop=），把店铺和订单预选上，
+  // 否则用户点了投诉只看到一张空白表单，还得自己翻店铺、抄单号。
+  (async () => {
+    await loadOrders(mask);
+    const sp = new URLSearchParams(location.search);
+    const ono = sp.get("order_no"), shopName = sp.get("shop");
+    if (!ono || !shopName) return;
+    const shopSel = $("#nShop", mask);
+    const opt = [...shopSel.options].find(o => o.textContent.startsWith(shopName));
+    if (!opt) return;
+    shopSel.value = opt.value;
+    await loadOrders(mask);
+    const os = $("#nOrder", mask);
+    if ([...os.options].some(o => o.value === ono)) {
+      os.value = ono;
+      if (os.onchange) os.onchange();
+    }
+  })();
+
+  mask.querySelector("[data-yes]").onclick = () => submitNew(mask, close);
+}
+
+function renderEv(mask) {
+  const box = mask ? $("#nEvRows", mask) : $("#nEvRows");
+  if (!box) return;
+  box.innerHTML = NEW_EV.map((e, i) => `
+    <div class="ev-row">
+      <select class="select" data-ek="${i}">
+        ${META.evidence_types.map(t => `<option ${t === e.k ? "selected" : ""}>${esc(t)}</option>`).join("")}
+      </select>
+      <input class="input" data-ev="${i}" value="${esc(e.v || "")}" placeholder="补充说明（可选）">
+      <button class="btn btn-sm btn-ghost" data-ed="${i}">×</button>
+    </div>`).join("") || `<div class="small muted" style="margin-bottom:8px">尚未添加凭证</div>`;
+  box.querySelectorAll("[data-ek]").forEach(s => s.onchange = e => { NEW_EV[+e.target.dataset.ek].k = e.target.value; });
+  box.querySelectorAll("[data-ev]").forEach(s => s.oninput = e => { NEW_EV[+e.target.dataset.ev].v = e.target.value; });
+  box.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { NEW_EV.splice(+b.dataset.ed, 1); renderEv(mask); });
+}
+
+function addEv() {
+  NEW_EV.push({ k: META.evidence_types[0], v: "" });
+  renderEv(document.querySelector(".modal-mask"));
+}
+
+async function loadOrders(mask) {
+  const sid = Number($("#nShop", mask).value);
+  const sel = $("#nOrder", mask), hint = $("#nOrderHint", mask);
+  sel.innerHTML = `<option value="">不关联订单（平台只能依据双方陈述判断）</option>`;
+  hint.textContent = "正在读取该店铺订单…";
+  let d = { items: [] };
+  try { d = await api(`/api/gov/orders?shop_id=${sid}`, { quiet: true }); } catch (e) {}
+  if (!d.items || !d.items.length) {
+    hint.textContent = "该店铺暂无可选订单，可直接不关联";
+    return;
+  }
+  sel.innerHTML += d.items.map(o => `<option value="${esc(o.order_no)}" data-amt="${o.amount}">
+      ${esc(o.order_no)} · ¥${o.amount.toFixed(2)} · ${esc(o.status)}</option>`).join("");
+  hint.textContent = `找到 ${d.items.length} 笔订单，选中后金额自动带入`;
+  sel.onchange = () => {
+    const op = sel.selectedOptions[0];
+    const amt = Number((op && op.dataset.amt) || 0);
+    if (amt > 0) $("#nAmount", mask).value = amt.toFixed(2);
+  };
+}
+
+async function submitNew(mask, close) {
+  const title = $("#nTitle", mask).value.trim();
+  if (title.length < 4) { toast("请把问题说清楚一点（至少 4 个字）", "err"); return; }
+  const body = {
+    shop_id: Number($("#nShop", mask).value),
+    dtype: NEW_TYPE,
+    title,
+    claim: $("#nClaim", mask).value.trim(),
+    claim_amount: Number($("#nAmount", mask).value || 0),
+    order_no: $("#nOrder", mask).value.trim(),
+    session_id: new URLSearchParams(location.search).get("session") || "",
+    evidence: NEW_EV.filter(e => e.k),
+  };
+  const btn = mask.querySelector("[data-yes]");
+  btn.disabled = true; btn.textContent = "AI 调解中…";
+  try {
+    const r = await api("/api/gov/disputes", { method: "POST", body });
+    close();
+    toast(`已受理：${r.dispute_no}，AI 判定「${LIAB_LABEL[r.liability] || r.liability}」`, "ok", 4200);
+    await loadList();
+    openDispute(r.id);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "提交投诉";
+  }
+}
+
+/* ---------------- 列表 ---------------- */
+async function loadList() {
+  const p = new URLSearchParams({ scope: SCOPE });
+  if (SCOPE === "all") p.delete("scope");
+  p.set("role", SCOPE === "buyer" ? "buyer" : SCOPE === "shop" ? "shop" : "");
+  if (Q) p.set("q", Q);
+  let d;
+  try { d = await api("/api/gov/disputes?" + p.toString()); } catch (e) { return; }
+  if (!d.items.length) {
+    $("#list").innerHTML = `<div class="empty"><div>暂无纠纷</div>
+      <div class="small">${ME.role === "buyer"
+        ? "对商家处理不满意时，可申请平台介入"
+        : "等买家发起投诉后，这里会出现与你相关的案件"}</div></div>`;
+    return;
+  }
+  $("#list").innerHTML = d.items.map(x => `
+    <div class="it ${CUR === x.id ? "on" : ""}" data-id="${x.id}">
+      <div class="it-top">${stTag(x.status)}
+        <div class="it-title">${esc(x.title)}</div></div>
+      <div class="it-sub">
+        <span>${esc(x.shop_name)}</span>
+        <span>·</span><span>${esc(x.type_label)}</span>
+        <span style="flex:1"></span><span>${esc(fmtTime(x.created_at))}</span>
+      </div>
+    </div>`).join("");
+  document.querySelectorAll(".it").forEach(el =>
+    el.onclick = () => openDispute(Number(el.dataset.id)));
+
+  // 首屏自动打开第一条：右侧详情区空着会让人以为页面没加载出来，
+  // 而用户真正想看的就是最新那条的进展。
+  if (!CUR || !d.items.some(x => x.id === CUR)) openDispute(d.items[0].id);
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  SCOPE = t.dataset.scope;
+  loadList();
+});
+let qt = null;
+$("#q").oninput = e => { clearTimeout(qt); qt = setTimeout(() => { Q = e.target.value.trim(); loadList(); }, 260); };
+
+/* ---------------- 详情 ---------------- */
+async function openDispute(id) {
+  CUR = id;
+  document.querySelectorAll(".it").forEach(el =>
+    el.classList.toggle("on", Number(el.dataset.id) === id));
+  let d;
+  try { d = await api("/api/gov/disputes/" + id); } catch (e) { return; }
+  render(d);
+}
+
+function render(d) {
+  const x = d.dispute, a = d.analysis, c = d.credit || {}, shop = d.shop || {};
+  const conf = Math.round((x.ai_confidence || 0) * 100);
+  const confColor = x.ai_confidence >= META.threshold ? "var(--ok)"
+    : x.ai_confidence >= 0.55 ? "var(--warn)" : "var(--danger)";
+  const isBuyer = x.buyer_id === ME.id;
+  const isMerchant = ME.shop_id && x.shop_id === ME.shop_id && !isBuyer;
+  const closed = ["closed"].includes(x.status);
+
+  const ev = (x.evidence || []).map(e =>
+    `<span class="pill">${esc(e.k)}${e.v ? "：" + esc(e.v) : ""}</span>`).join("")
+    || `<span class="small muted">未提交凭证</span>`;
+
+  const tl = (d.messages || []).map(m => {
+    const who = { buyer: "买家", merchant: "商家", ai: "AI 调解员",
+                  arbiter: "平台仲裁员", system: "系统" }[m.role] || m.role;
+    const ini = { buyer: "买", merchant: "商", ai: "AI", arbiter: "裁", system: "·" }[m.role] || "·";
+    return `<div class="tl-item"><div class="tl-dot ${esc(m.role)}">${esc(ini)}</div>
+      <div class="tl-body"><div class="tl-who">${esc(who)} · ${esc(fmtFull(m.created_at))}</div>
+      <div class="tl-txt">${esc(m.content)}</div></div></div>`;
+  }).join("");
+
+  const pens = (d.penalties || []).filter(p => p.ptype !== "record").map(p => `
+    <div style="display:flex;gap:8px;align-items:center;font-size:12.5px;padding:6px 0;
+                border-bottom:1px solid var(--border)">
+      <span class="badge ${p.status === "active" ? "L3" : "neutral"}">${p.status === "active" ? "生效中" : "已撤销"}</span>
+      <span>${esc(p.type_label)}</span>
+      ${p.points ? `<span class="mono">${p.points} 分</span>` : ""}
+      <span class="small muted" style="flex:1">${esc(p.basis || "")}</span>
+    </div>`).join("");
+
+  const appealable = x.status === "resolved" && !(d.appeals || []).some(v => v.appellant_id === ME.id);
+
+  // 由客服会话转来的纠纷：明确告诉双方「对话记录已经交给平台了」，
+  // 不能让当事人以为平台只看到了自己填的那几行字。
+  const fromCs = d.session ? `
+    <div class="hint" style="margin:0 0 14px;padding:9px 12px;border-radius:8px;
+         background:var(--primary-weak);color:var(--text-2);line-height:1.7">
+      本纠纷由客服会话转来，你和客服的完整对话（${(d.session.messages || []).length} 条）
+      已作为陈述记录提交平台，三方看到的是同一份内容。
+    </div>` : "";
+
+  // 订单事实：买卖双方看同一份时间戳。争议焦点是「有没有超时」时，
+  // 双方不必各说各话——页面上写的就是平台的判定口径。
+  const o = d.order;
+  const hfmt = h => h == null ? "—" : (h >= 24 ? `${(h / 24).toFixed(1)} 天` : `${h.toFixed(1)} 小时`);
+  // 商品明细：只有金额的话，"268 元判退"退的是哪件货都说不清；
+  // 买家说"页面写实木、收到是塑料"，前提是订单上真有这件商品。
+  const it = (o && o.item) || {};
+  const lg = (o && o.logistics) || {};
+  // 多商品订单：一单只显示一件，买家说"我退的是那个配件"就没人能对上。
+  // 逐行列出来，已退数量也标上，部分退款才看得出退的是哪一行。
+  const items = (o && o.items && o.items.length) ? o.items : (it.title ? [it] : []);
+  const itemView = items.length ? `
+        <div class="oitems">${items.map((x, i) => `
+          <div class="oitem">
+            <span class="s mono" style="opacity:.55">${i + 1}</span>
+            <span class="t">${esc(x.title)}</span>
+            ${x.sku ? `<span class="s">${esc(x.sku)}</span>` : ""}
+            ${x.refund_qty ? `<span class="s" style="color:var(--danger)">已退 ${x.refund_qty} 件</span>` : ""}
+            <div style="flex:1"></div>
+            <span class="s mono">×${x.qty}</span>
+            <span class="s mono">单价 ¥${(x.unit_price || 0).toFixed(2)}</span>
+          </div>`).join("")}
+        </div>
+        ${items.length > 1 ? `<div class="small muted" style="margin-top:6px">
+          共 ${o.qty_total} 件 · 商品小计 ¥${(o.subtotal || 0).toFixed(2)}${
+            o.amount_mismatch ? "（与实付不一致，含优惠或运费）" : ""}</div>` : ""}` : "";
+  const logView = o ? `
+        <div class="olog">
+          <div class="ofact">承运商 <b>${esc(lg.carrier || "未填写")}</b></div>
+          <div class="ofact">运单号 <b>${esc(lg.tracking_no || "无")}</b></div>
+          <div class="ofact">揽收 <b>${lg.picked_at ? esc(fmtFull(lg.picked_at)) : "无记录"}</b></div>
+        </div>` : "";
+  const orderView = o ? `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>订单事实</h3>
+        <div style="flex:1"></div>
+        <span class="small muted">${esc(o.order_no)} · ${esc(o.status)} · ¥${(o.amount || 0).toFixed(2)}</span></div>
+      <div class="card-body">
+        ${itemView}
+        <div class="ofacts">
+          <div class="ofact">付款 <b>${o.paid_at ? esc(fmtFull(o.paid_at)) : "—"}</b></div>
+          <div class="ofact">发货 <b>${o.shipped_at ? esc(fmtFull(o.shipped_at)) : "未发货"}</b></div>
+          <div class="ofact">签收 <b>${o.received_at ? esc(fmtFull(o.received_at)) : "—"}</b></div>
+          ${o.aftersale_applied_at ? `<div class="ofact">申请${esc(o.aftersale_type || "售后")} <b>${esc(fmtFull(o.aftersale_applied_at))}</b></div>` : ""}
+        </div>
+        <div class="osla">
+          ${o.ship_open ? `<span class="badge L3">付款 ${hfmt(o.ship_hours)} 未发货</span>`
+            : o.ship_hours != null ? `<span class="badge ${o.ship_late ? "L3" : "L1"}">发货耗时 ${hfmt(o.ship_hours)}（时效 ${o.ship_sla}h）</span>` : ""}
+          ${o.aftersale_wait_hours != null ? `<span class="badge ${o.aftersale_late ? "L3" : "L1"}">售后已等待 ${hfmt(o.aftersale_wait_hours)}（时限 ${o.aftersale_sla}h）</span>` : ""}
+          ${o.fake_ship ? `<span class="badge L3">${o.no_tracking ? "已发货但无运单号" : `发货 ${hfmt(lg.pick_wait_hours)} 仍无揽收`}（虚假发货，${o.pick_sla}h）</span>`
+            : lg.pick_hours != null ? `<span class="badge L1">揽收耗时 ${hfmt(lg.pick_hours)}</span>` : ""}
+        </div>
+        ${logView}
+      </div>
+    </div>` : `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>订单事实</h3><span class="badge L2">未关联订单</span></div>
+      <div class="card-body"><div class="small muted" style="line-height:1.7">
+        这条纠纷没有关联订单号，平台只能依据双方陈述判断。补充订单号能让时效争议一眼说清。</div></div>
+    </div>`;
+
+  const myPen = (d.penalties || []).find(p => p.status === "active" && p.ptype !== "record");
+
+  const actions = [];
+  if (!closed) actions.push(`<button class="btn btn-sm" onclick="focusReply()">补充说明</button>`);
+  if (isBuyer && ["pending_human", "arbitrating"].includes(x.status))
+    actions.push(`<button class="btn btn-sm btn-danger" onclick="doClose(${x.id})">撤回投诉</button>`);
+  if (appealable) actions.push(`<button class="btn btn-sm" onclick="doAppeal(${x.id},'verdict')">申诉裁决</button>`);
+  if (isMerchant && myPen && appealable)
+    actions.push(`<button class="btn btn-sm" onclick="doAppeal(${myPen.id},'penalty')">申诉处罚</button>`);
+
+  $("#detail").innerHTML = `
+    <div class="d-head">${stTag(x.status)}<h2>${esc(x.title)}</h2></div>
+    <div class="d-sub">${esc(x.dispute_no)} · ${esc(x.type_label)} · ${esc(x.shop_name || shop.name || "")}
+      · 提交于 ${esc(fmtFull(x.created_at))}</div>
+
+    <div class="meta">
+      <div class="m"><div class="k">诉求金额</div><div class="v">¥${(x.claim_amount || 0).toFixed(2)}</div></div>
+      <div class="m"><div class="k">AI 定责</div><div class="v">${esc(LIAB_LABEL[x.liability] || "待定")}</div></div>
+      <div class="m"><div class="k">裁决方案</div><div class="v">${esc(x.remedy_label || "—")}</div></div>
+      <div class="m"><div class="k">扣分</div><div class="v">${x.ai_points || 0}</div></div>
+    </div>
+
+    ${orderView}
+    ${fromCs}
+
+    <div class="ai">
+      <div class="hd">AI 调解员意见
+        <div style="flex:1"></div>
+        <span class="badge ${x.status === "pending_human" ? "L2" : "L1"}">
+          ${x.status === "pending_human" ? "转人工复核中" : x.stage === "ai" ? "AI 自动裁决" : "人工裁决"}</span>
+      </div>
+      <div class="bd">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="small muted">置信度</span>
+          <b style="color:${confColor}">${conf}%</b>
+          <span class="small muted">（自动裁决线 ${Math.round(META.threshold * 100)}%）</span>
+        </div>
+        <div class="conf-bar"><i style="width:${conf}%;background:${confColor}"></i></div>
+        <div class="quote">${esc(x.ai_reasoning || x.verdict || "（AI 尚未给出意见）")}</div>
+        ${(a.steps || []).length ? `<ul class="steps">${a.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
+        ${(a.missing || []).length ? `<div class="hint" style="color:var(--warn);margin-top:8px">
+          还需补充：${esc(a.missing.join("、"))}</div>` : ""}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>我的描述与凭证</h3></div>
+      <div class="card-body">
+        <div style="font-size:13px;line-height:1.7">${esc(x.claim || "（未填写）")}</div>
+        <div class="evtags">${ev}</div>
+        ${pens ? `<div style="margin-top:12px"><div class="lbl" style="margin-bottom:4px">处罚情况</div>${pens}</div>` : ""}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>处理过程</h3>
+        <span class="small muted">${(d.messages || []).length} 条</span></div>
+      <div class="card-body"><div class="tl">${tl}</div></div>
+    </div>
+
+    ${actions.length ? `<div style="display:flex;gap:8px;margin-bottom:14px">${actions.join("")}</div>` : ""}
+
+    ${closed ? "" : `
+    <div class="card">
+      <div class="card-head"><h3>${isMerchant ? "商家答辩" : "补充说明"}</h3>
+        <span class="small muted">${isMerchant ? "答辩会被 AI 重新评估，可能改判" : "补充材料或说明情况"}</span></div>
+      <div class="card-body">
+        <textarea class="input" id="replyBox" rows="3"
+          placeholder="${isMerchant ? "说明事实、提供反证。48 小时内答辩会触发一次重新评估。" : "补充说明你这边的情况，或上传新的凭证说明"}"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" onclick="doReply(${x.id})">提交</button>
+          ${!isMerchant ? `<button class="btn btn-sm" onclick="quickEv(${x.id})">追加凭证</button>` : ""}
+        </div>
+      </div>
+    </div>`}
+  `;
+}
+
+function focusReply() {
+  const el = $("#replyBox");
+  if (el) { el.focus(); el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+}
+
+async function doReply(id) {
+  const t = $("#replyBox").value.trim();
+  if (!t) { toast("内容不能为空", "err"); return; }
+  try {
+    const r = await api(`/api/gov/disputes/${id}/messages`, { method: "POST", body: { text: t } });
+    if (r.overturned) toast("答辩成立，原裁决已改判，处罚已撤销", "ok", 4200);
+    else if (r.to_human) toast("已转人工复核", "info");
+    else toast("已提交", "ok");
+    openDispute(id); loadList();
+  } catch (e) {}
+}
+
+async function quickEv(id) {
+  const t = prompt("补充凭证（格式：凭证类型：说明）", "物流记录：运单号 SF1234567890 显示 10-26 已签收");
+  if (!t || !t.trim()) return;
+  const i = t.indexOf("：") >= 0 ? t.indexOf("：") : t.indexOf(":");
+  const k = i > 0 ? t.slice(0, i).trim() : "补充说明";
+  const v = i > 0 ? t.slice(i + 1).trim() : t.trim();
+  const body = { text: `【追加凭证】${k}：${v}` };
+  try {
+    await api(`/api/gov/disputes/${id}/messages`, { method: "POST", body });
+    toast("凭证已追加", "ok");
+    openDispute(id); loadList();
+  } catch (e) {}
+}
+
+async function doClose(id) {
+  const ok = await confirmBox("撤回投诉", "撤回后本次纠纷关闭，处罚不再追加。确认撤回？", "撤回", true);
+  if (!ok) return;
+  try {
+    await api(`/api/gov/disputes/${id}/close`, { method: "POST", body: { reason: "买家主动撤回投诉" } });
+    toast("已撤回", "ok"); openDispute(id); loadList();
+  } catch (e) {}
+}
+
+async function doAppeal(targetId, type) {
+  const t = prompt(type === "penalty"
+    ? "申诉理由（至少 10 字，说明处罚哪里不成立）"
+    : "申诉理由（至少 10 字，说明裁决哪里有问题，有新证据请一并说明）",
+    type === "penalty"
+      ? "该商品页面已标注贴皮工艺，买家提供的截图为历史版本，请求复核适用条款"
+      : "我提交的凭证未被采纳，原裁决认定事实有误，请求复核");
+  if (t === null) return;
+  if (t.trim().length < 10) { toast("理由太短，至少 10 个字", "err"); return; }
+  try {
+    const r = await api("/api/gov/appeals", {
+      method: "POST", body: { target_type: type, target_id: targetId, reason: t.trim() }
+    });
+    toast(`申诉已提交，AI 初审建议：${r.ai_suggest === "accept" ? "受理" : "驳回"}（等待人工复核）`, "ok", 4200);
+    openDispute(CUR);
+  } catch (e) {}
+}
+
+/* ---------------- 启动 ---------------- */
+(async function () {
+  try { ME = await initShell(); } catch (e) { return; }
+  META = await api("/api/gov/meta");
+  $("#rolePill").textContent = ME.role_label + (ME.shop_name ? " · " + ME.shop_name : "");
+  if (ME.shop_id) $("#tabShop").style.display = "";
+  // 只有买家有"申请平台介入"这个动作；商家/运营进来是看案子，不是提诉求。
+  // 按钮在 HTML 里默认 display:none，这里按角色放开——反过来的写法（默认显示、
+  // 非买家再隐藏）在 JS 失败时会漏出按钮，宁可默认闭嘴。
+  if (ME.role === "buyer") {
+    $("#btnNew").style.display = "";
+  } else {
+    const em = $("#detail .empty");
+    if (em) em.innerHTML = `<div class="big">⚖</div>
+      <div>从左侧选一条纠纷查看证据、双方陈述与裁决</div>
+      <div class="small">提诉求是买家的事；商家在这里答辩与申诉，运营在这里裁决</div>`;
+  }
+
+  // 从客服会话跳转过来：自动打开投诉表单
+  const sp = new URLSearchParams(location.search);
+  await loadList();
+  if (sp.get("new") === "1") openNew();
+  // 从客服工作台「到纠纷中心查看」跳过来，直接打开对应案件
+  else if (sp.get("id")) openDispute(Number(sp.get("id")));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>丰贸电商平台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f7f8fa; color: #1f2328; line-height: 1.65; padding: 28px 20px 60px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.2px; }
+  .sub { font-size: 12.5px; color: #6a737d; margin-top: 5px; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11.5px; padding: 4px 10px; border-radius: 999px;
+    background: #fff; border: 1px solid #e3e6ea; color: #4a5158;
+  }
+  .pill b { color: #1f2328; font-weight: 600; }
+  #evalpanel { font-size: 12px; color: #57606a; align-items: center; }
+  #evalpanel .k { color: #8b929a; }
+  #evalpanel b { color: #1a7f37; font-weight: 600; }
+
+  .askbox { background: #fff; border: 1px solid #e3e6ea; border-radius: 12px; padding: 16px; margin-top: 18px; }
+  .row { display: flex; gap: 10px; }
+  input[type=text] {
+    flex: 1; font: inherit; font-size: 14px; padding: 11px 13px;
+    border: 1px solid #dfe3e8; border-radius: 8px; outline: none; color: #1f2328;
+  }
+  input[type=text]:focus { border-color: #185FA5; box-shadow: 0 0 0 3px rgba(24,95,165,.08); }
+  button {
+    font: inherit; font-size: 13.5px; padding: 0 20px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #185FA5; background: #185FA5; color: #fff; font-weight: 500;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 11px; }
+  .preset {
+    font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer;
+    background: #f4f6f8; border: 1px solid #e6e9ed; color: #4a5158;
+  }
+  .preset:hover { background: #eef2f6; border-color: #d5dbe2; }
+  .preset span { color: #8b929a; margin-right: 4px; }
+
+  .ans { background: #fff; border: 1px solid #e3e6ea; border-radius: 12px; padding: 20px; margin-top: 14px; }
+  .ans-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .badge { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 5px; }
+  .L1 { background: #EAF3DE; color: #3B6D11; }
+  .L2 { background: #FAEEDA; color: #854F0B; }
+  .L3 { background: #FCEBEB; color: #A32D2D; }
+  .scene { font-size: 11.5px; color: #6a737d; font-family: ui-monospace, Menlo, monospace; }
+  .concl { font-size: 14.5px; white-space: pre-wrap; }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+  .chip { font-size: 11.5px; padding: 3px 9px; border-radius: 5px; background: #E6F1FB; color: #185FA5; }
+  .notice {
+    margin-top: 14px; font-size: 12.5px; color: #6a737d;
+    background: #fafbfc; border-left: 3px solid #dfe3e8; padding: 9px 12px; border-radius: 0 6px 6px 0;
+  }
+  .handoff {
+    margin-top: 14px; border: 1px solid #F09595; background: #FCEBEB; border-radius: 10px; padding: 13px 15px;
+  }
+  .handoff h4 { font-size: 13px; color: #A32D2D; font-weight: 600; }
+  .handoff p { font-size: 12.5px; color: #791F1F; margin-top: 4px; }
+  .order {
+    margin-top: 14px; background: #fafbfc; border: 1px dashed #dfe3e8; border-radius: 9px;
+    padding: 11px 14px; font-size: 12.5px; color: #4a5158;
+  }
+  .order b { color: #1f2328; }
+  .order .k { color: #8b929a; margin-right: 4px; }
+  .order span { margin-right: 14px; }
+
+  h3.sec { font-size: 13px; font-weight: 600; color: #4a5158; margin: 22px 0 10px; }
+  .clause { border: 1px solid #e3e6ea; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; background: #fff; }
+  .clause-top { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .cite { font-size: 13.5px; font-weight: 600; color: #185FA5; }
+  .doc { font-size: 12px; color: #6a737d; }
+  .lv { font-size: 10.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e3e6ea; color: #6a737d; }
+  .clause p { font-size: 13px; margin-top: 8px; color: #2f343a; white-space: pre-wrap; }
+  .clause-foot { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 9px; font-size: 11.5px; color: #8b929a; }
+  .clause-foot a { color: #185FA5; text-decoration: none; }
+  .clause-foot a:hover { text-decoration: underline; }
+
+  footer { margin-top: 20px; font-size: 11.5px; color: #9aa1a9; text-align: center; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #dfe3e8;
+    border-top-color: #185FA5; border-radius: 50%; animation: sp .7s linear infinite; vertical-align: -2px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .empty { color: #8b929a; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>丰贸电商平台</h1>
+      <div class="sub">提问 → 条款号 + 原文 + 风险等级 + 转人工 ｜ 数据来源：法规原文（全国人大 / 市场监管总局）</div>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="meta" id="evalpanel" style="margin-top:6px"></div>
+  </header>
+
+  <div class="askbox">
+    <div class="row">
+      <input id="q" type="text" placeholder="例：买家签收后申请七天无理由退货，运费谁承担？" autocomplete="off">
+      <button id="go">查询</button>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div id="out"></div>
+
+  <footer>检索 BM25 ∥ BGE-M3(Milvus) → RRF → bge-reranker-large 精排 · 生成 大模型（可配）+ 引用校验，未配置或校验不通过自动退回模板 · 条款原文以官方公布为准</footer>
+</div>
+
+<script>
+const PRESETS = [
+  ["L1", "什么叫做平台内经营者？"],
+  ["L2", "买家签收后申请七天无理由退货，退货运费谁承担？"],
+  ["L3", "商品标题写“国家级”“最高级”会被罚多少钱？"],
+  ["订单", "订单 20261015000008 已发货，买家申请仅退款，我多久要处理？"]
+];
+const $ = s => document.querySelector(s);
+
+fetch("/api/stats").then(r => r.json()).then(s => {
+  const ix = s.index || {};
+  const vec = (ix.vector || {}).backend || "-";
+  const rr = (ix.rerank || {});
+  const lm = s.llm || {};
+  const llmTxt = lm.available ? lm.model : "off(模板)";
+  $("#meta").innerHTML = `
+    <span class="pill">条款 <b>${s.clauses}</b></span>
+    <span class="pill">模拟订单 <b>${s.orders}</b></span>
+    <span class="pill">规则库 <b>${s.rule_version}</b></span>
+    <span class="pill">向量 <b>${vec.includes("milvus") ? "Milvus" : "npz"}</b></span>
+    <span class="pill">精排 <b>${rr.enabled ? "on" : "off"}</b></span>
+    <span class="pill">大模型 <b>${llmTxt}</b></span>
+    <span class="pill">Redis <b>${s.redis ? "on" : "off"}</b></span>
+    <span class="pill">问答 <b>${(s.qa_log || {}).n || 0}</b></span>`;
+}).catch(() => {});
+
+fetch("/api/eval").then(r => r.json()).then(e => {
+  if (!e || !e.samples) return;
+  $("#evalpanel").innerHTML = `
+    <span class="k">检索评测</span>
+    <b>Top1 ${(e.top1*100).toFixed(1)}%</b>
+    <b>Top3 ${(e.top3*100).toFixed(1)}%</b>
+    <span>样本 ${e.samples} 题</span>
+    <span>P50 ${e.p50_ms}ms</span>
+    <span>${e.rerank ? "含精排" : "无精排"} · ${e.vector_backend || ""}</span>`;
+}).catch(() => {});
+
+$("#presets").innerHTML = PRESETS.map(([lv, q]) =>
+  `<div class="preset" data-q="${q}"><span>${lv}</span>${q}</div>`).join("");
+$("#presets").addEventListener("click", e => {
+  const p = e.target.closest(".preset");
+  if (p) { $("#q").value = p.dataset.q; run(); }
+});
+
+$("#go").addEventListener("click", run);
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+
+async function run() {
+  const q = $("#q").value.trim();
+  if (!q) return;
+  $("#go").disabled = true;
+  $("#out").innerHTML = `<div class="ans"><span class="spin"></span> 检索条款中…</div>`;
+  try {
+    const r = await fetch("/api/ask", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q })
+    });
+    const d = await r.json();
+    render(d);
+  } catch (e) {
+    $("#out").innerHTML = `<div class="ans empty">请求失败：${e}</div>`;
+  } finally { $("#go").disabled = false; }
+}
+
+function render(d) {
+  const lv = d.risk_level || "L1";
+  const chips = (d.timeouts || []).map(t => `<span class="chip">时限 ${t}</span>`).join("");
+  const order = d.order ? `
+    <div class="order">
+      <span><span class="k">订单</span><b>${d.order.order_no}</b></span>
+      <span><span class="k">店铺</span>${d.order.shop_name}</span>
+      <span><span class="k">类目</span>${d.order.category}</span>
+      <span><span class="k">状态</span><b>${d.order.status}</b></span>
+      ${d.order.aftersale_type ? `<span><span class="k">售后</span>${d.order.aftersale_type}</span>` : ""}
+    </div>` : "";
+
+  const handoff = d.handoff ? `
+    <div class="handoff">
+      <h4>已转人工 · 工单号 HD-${Date.now().toString().slice(-6)}</h4>
+      <p>${d.handoff_reason || "高风险事项"}。已带上下文交接：问题、识别场景 <code>${d.scene || "-"}</code>、已给条款 ${d.clauses.length} 条，坐席无需重复询问。</p>
+    </div>` : "";
+
+  const clauses = d.clauses.map(c => `
+    <div class="clause">
+      <div class="clause-top">
+        <span class="cite">${c.clause_no}</span>
+        <span class="doc">《${c.doc_name}》</span>
+        <span class="lv">${c.risk_level}</span>
+        <span class="doc">${c.clause_path}</span>
+      </div>
+      <p>${c.content.replace(/</g, "&lt;")}</p>
+      <div class="clause-foot">
+        <span>生效 ${c.effective_from || "—"}</span>
+        <span>相关度 ${c.score}</span>
+        <a href="${c.source_url}" target="_blank" rel="noopener">查看官方原文</a>
+      </div>
+    </div>`).join("");
+
+  $("#out").innerHTML = `
+    <div class="ans">
+      <div class="ans-head">
+        <span class="badge ${lv}">${lv} ${lv === "L1" ? "可直接回答" : lv === "L2" ? "需附条款与免责" : "强制转人工"}</span>
+        <span class="scene">${d.scene || "scene: -"}${d.state_in ? " · " + d.state_in : ""}</span>
+      </div>
+      <div class="concl">${(d.conclusion || "").replace(/</g, "&lt;")}</div>
+      ${chips ? `<div class="chips">${chips}</div>` : ""}
+      ${order}
+      <div class="notice">${d.notice || ""}</div>
+      ${handoff}
+    </div>
+    <h3 class="sec">依据条款（${d.clauses.length} 条，按相关度排序）</h3>
+    ${clauses || '<div class="ans empty">未检索到条款</div>'}
+    <footer>耗时 ${d.latency_ms} ms ｜ 缓存 ${d.cache_hit ? "命中" : "未命中"} ｜ 生成 ${genText(d)} ｜ 引用校验 ${d.citation_verified ? "通过（条款号均在召回集内）" : "未通过：" + (d.fake_citations || []).join(",")}${traceText(d)}</footer>`;
+}
+
+// 生成方式要显示到界面上。模型生成和模板抽取在观感上差别很大，
+// 不标出来用户会以为都是大模型写的，或者反过来以为系统没接模型。
+function genText(d) {
+  const g = d.generator || "template";
+  const lm = d.llm || {};
+  if (g.indexOf("llm:") === 0) return `大模型 ${g.slice(4)}（${lm.ms || 0}ms / ${lm.tokens || 0} tok）`;
+  if (lm.fallback === "citation_check_failed")
+    return `模板抽取（模型引用了不存在的条款 ${(lm.fake_citations || []).join("、")}，已拦截）`;
+  if (lm.fallback === "call_failed") return "模板抽取（模型调用失败，已降级）";
+  if (lm.skip === "not_configured") return "模板抽取（未配置大模型）";
+  return "模板抽取";
+}
+
+function traceText(d) {
+  const t = d.trace || {};
+  if (!t.channels) return "";
+  return ` ｜ 召回 BM25 ${t.channels.bm25} / 向量 ${t.channels.vector}` +
+         ` ｜ 精排 ${t.rerank_ms}ms ｜ ${(t.vector_backend || "").split("(")[0]}`;
+}
+</script>
+</body>
+</html>

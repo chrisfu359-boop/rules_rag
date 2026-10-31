@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的订单 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .ord-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ord-tabs .btn.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .ord-list { display: flex; flex-direction: column; gap: 12px; }
+  .ord-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .ord-top { display: flex; align-items: center; gap: 10px; }
+  .ord-no { font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .ord-shop { font-size: 12px; color: var(--muted); }
+  .ord-title { font-size: 14px; font-weight: 600; margin: 7px 0 2px; }
+  .ord-meta { font-size: 12px; color: var(--muted); }
+  .ord-foot { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
+  .ord-amt { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .ord-actions { margin-left: auto; display: flex; gap: 8px; }
+  .ord-empty { padding: 48px; text-align: center; color: var(--muted); }
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.48); display: none;
+    align-items: center; justify-content: center; z-index: 80; }
+  .modal-mask.on { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    width: min(440px, 92vw); padding: 20px; box-shadow: 0 18px 60px rgba(0,0,0,.35); }
+  .modal-box h3 { font-size: 15px; margin-bottom: 14px; }
+  .modal-box .f { margin: 10px 0; }
+  .modal-box label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; }
+  .modal-box textarea, .modal-box select { width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; }
+  .modal-box .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">规</div>
+      <div><div class="brand-txt">丰贸电商平台</div><div class="brand-sub" id="sideSub">买家中心</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item active" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2>我的订单</h2>
+      <div class="spacer"></div>
+      <span class="pill" id="ordSummary">—</span>
+    </div>
+    <div class="content">
+      <div class="ord-tabs" id="ordTabs"></div>
+      <div class="ord-list" id="ordList"><div class="ord-empty">加载中…</div></div>
+    </div>
+  </main>
+</div>
+
+<!-- 售后申请 -->
+<div class="modal-mask" id="refundMask">
+  <div class="modal-box">
+    <h3>申请售后</h3>
+    <div class="f"><label>售后类型</label>
+      <select id="rfKind"><option>退货退款</option><option>仅退款</option><option>换货</option></select></div>
+    <div class="f"><label>问题描述</label>
+      <textarea id="rfReason" rows="3" placeholder="简单说明问题，例如：收到商品破损"></textarea></div>
+    <div class="acts">
+      <button class="btn" id="rfCancel">取消</button>
+      <button class="btn btn-primary" id="rfOk">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let ME = null, CUR = "", PENDING_NO = "";
+const STATUS_CN = { "待付款": "待付款", "待发货": "待发货", "已发货": "已发货",
+                    "已完成": "已完成", "售后中": "售后中", "已关闭": "已关闭" };
+const FILTERS = [["", "全部"], ["待发货", "待发货"], ["已发货", "已发货"],
+                 ["已完成", "已完成"], ["售后中", "售后中"]];
+
+(async function () {
+  ME = await initShell();
+  renderTabs();
+  await loadOrders();
+})();
+
+function renderTabs() {
+  $("#ordTabs").innerHTML = FILTERS.map(([v, l]) =>
+    `<button class="btn btn-sm ${CUR === v ? "on" : ""}" data-st="${v}">${l}</button>`).join("");
+  $$("#ordTabs .btn").forEach(b => b.onclick = () => {
+    CUR = b.dataset.st; renderTabs(); loadOrders();
+  });
+}
+
+async function loadOrders() {
+  const box = $("#ordList");
+  box.innerHTML = `<div class="ord-empty">加载中…</div>`;
+  let d;
+  try {
+    d = await api("/api/orders/mine" + (CUR ? "?status=" + encodeURIComponent(CUR) : ""));
+  } catch (e) {
+    box.innerHTML = `<div class="ord-empty">加载失败：${esc(e.message || e)}</div>`;
+    return;
+  }
+  $("#ordSummary").textContent = `共 ${d.total} 单 · 进行中 ${d.live} · 已完成 ${d.done}`;
+  if (!d.items.length) { box.innerHTML = `<div class="ord-empty">这一栏还没有订单</div>`; return; }
+  const money = v => "¥" + Number(v || 0).toLocaleString("zh-CN",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  box.innerHTML = d.items.map(o => {
+    const st = STATUS_CN[o.status] || o.status;
+    const canRefund = !["待付款", "已关闭", "售后中"].includes(o.status);
+    return `
+      <div class="ord-card">
+        <div class="ord-top">
+          <span class="ord-no">${esc(o.order_no)}</span>
+          <span class="ord-shop">${esc(o.shop_name)}</span>
+          <span class="badge ${o.status === "售后中" ? "L2" : o.status === "已完成" ? "L1" : "neutral"}"
+                style="margin-left:auto">${esc(st)}</span>
+        </div>
+        <div class="ord-title">${esc(o.item_title || "商品")}${o.sku ? " · " + esc(o.sku) : ""} × ${o.qty || 1}</div>
+        <div class="ord-meta">下单 ${esc(fmtTime(o.paid_at))}${o.tracking_no
+          ? " · " + esc(o.carrier || "") + " " + esc(o.tracking_no) : ""}</div>
+        <div class="ord-foot">
+          <span class="ord-amt">${money(o.amount)}</span>
+          <div class="ord-actions">
+            ${canRefund ? `<button class="btn btn-sm" data-refund="${esc(o.order_no)}">申请售后</button>` : ""}
+            <button class="btn btn-sm" data-complaint="${esc(o.order_no)}" data-shop="${esc(o.shop_name)}">投诉</button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+  $$("[data-refund]").forEach(b => b.onclick = () => openRefund(b.dataset.refund));
+  $$("[data-complaint]").forEach(b => b.onclick = () => {
+    // 直接打开纠纷中心的「申请平台介入」表单，并把这一单预选上
+    location.href = "/dispute?new=1&order_no=" + encodeURIComponent(b.dataset.complaint)
+      + "&shop=" + encodeURIComponent(b.dataset.shop || "");
+  });
+}
+
+function openRefund(no) {
+  PENDING_NO = no;
+  $("#rfReason").value = "";
+  $("#refundMask").classList.add("on");
+}
+$("#rfCancel").onclick = () => $("#refundMask").classList.remove("on");
+$("#rfOk").onclick = async () => {
+  const kind = $("#rfKind").value, reason = $("#rfReason").value.trim();
+  try {
+    await api("/api/orders/" + encodeURIComponent(PENDING_NO) + "/refund",
+              { method: "POST", body: { kind, reason } });
+    toast("售后申请已提交", "ok");
+    $("#refundMask").classList.remove("on");
+    loadOrders();
+  } catch (e) { toast("提交失败：" + (e.message || e), "err"); }
+};
+</script>
+</body>
+</html>

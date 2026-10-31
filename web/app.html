@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作台 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  /* ---------- 会话列表 ---------- */
+  .sess-head { padding: 12px 12px 6px; display: flex; gap: 6px; align-items: center; }
+  .sess-new {
+    flex: 1; height: 32px; border-radius: 7px; border: 1px dashed rgba(255,255,255,.22);
+    background: transparent; color: var(--sidebar-text); font-size: 13px; cursor: pointer;
+    transition: .15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .sess-new:hover { background: var(--sidebar-active); color: #fff; border-color: rgba(255,255,255,.4); }
+  .sess-search {
+    margin: 6px 12px 4px; height: 30px; border-radius: 6px; padding: 0 10px;
+    background: rgba(255,255,255,.06); border: 1px solid transparent;
+    color: #fff; font-size: 12.5px; width: calc(100% - 24px); outline: none;
+  }
+  .sess-search::placeholder { color: rgba(255,255,255,.35); }
+  .sess-search:focus { border-color: rgba(79,140,255,.6); background: rgba(255,255,255,.09); }
+
+  .sess-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+  .sess {
+    position: relative; padding: 8px 10px; border-radius: 7px; cursor: pointer;
+    margin-bottom: 2px; transition: .13s;
+  }
+  .sess:hover { background: var(--sidebar-active); }
+  .sess.active { background: var(--sidebar-active); }
+  .sess.active::before {
+    content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px;
+    border-radius: 2px; background: var(--primary);
+  }
+  .sess-title {
+    font-size: 13px; color: #d7dee9; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; padding-right: 34px;
+  }
+  .sess-sub { font-size: 11px; color: rgba(255,255,255,.35); margin-top: 1px; }
+  .sess-ops {
+    position: absolute; right: 6px; top: 8px; display: none; gap: 2px;
+  }
+  .sess:hover .sess-ops { display: flex; }
+  .sess-op {
+    width: 20px; height: 20px; border-radius: 4px; border: none; cursor: pointer;
+    background: rgba(255,255,255,.08); color: #cbd5e1; font-size: 11px; line-height: 1;
+    display: grid; place-items: center;
+  }
+  .sess-op:hover { background: rgba(255,255,255,.2); color: #fff; }
+
+  /* ---------- 对话区 ---------- */
+  .chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .chat-scroll { flex: 1; overflow-y: auto; padding: 26px 28px 12px; }
+  .chat-inner { max-width: 820px; margin: 0 auto; }
+
+  .msg { margin-bottom: 26px; animation: rise .2s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  .msg-q { display: flex; justify-content: flex-end; }
+  .bubble-q {
+    max-width: 78%; padding: 11px 15px; border-radius: 12px 12px 3px 12px;
+    background: var(--primary); color: #fff; font-size: 14px;
+    white-space: pre-wrap; word-break: break-word; line-height: 1.7;
+  }
+  .msg-a { display: flex; gap: 11px; }
+  .a-mark {
+    width: 27px; height: 27px; border-radius: 7px; flex: none; margin-top: 2px;
+    background: linear-gradient(135deg, #4f8cff, #7c3aed);
+    display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700;
+  }
+  .a-body { flex: 1; min-width: 0; }
+  .a-meta { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin-bottom: 7px; }
+  .a-text {
+    font-size: 14px; line-height: 1.85; white-space: pre-wrap; word-break: break-word;
+    color: var(--text);
+  }
+  .a-notice {
+    margin-top: 10px; padding: 9px 12px; border-radius: 7px; font-size: 12.5px;
+    background: var(--surface-2); border-left: 3px solid var(--border-strong);
+    color: var(--text-2); line-height: 1.7;
+  }
+  .a-notice.warn { background: var(--warn-weak); border-left-color: var(--warn); color: var(--warn); }
+  .a-notice.danger { background: var(--danger-weak); border-left-color: var(--danger); color: var(--danger); }
+
+  /* 条款折叠 */
+  .cites { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .cites-head {
+    display: flex; align-items: center; gap: 7px; padding: 9px 13px; cursor: pointer;
+    background: var(--surface-2); font-size: 12.5px; color: var(--text-2); user-select: none;
+  }
+  .cites-head:hover { background: var(--surface); }
+  .cites-head .arrow { transition: .18s; font-size: 10px; opacity: .6; }
+  .cites.open .arrow { transform: rotate(90deg); }
+  .cites-body { display: none; }
+  .cites.open .cites-body { display: block; }
+  .cite-item { padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+  .cite-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .cite-no {
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 600;
+    padding: 1px 7px; border-radius: 5px; background: var(--primary-weak); color: var(--primary);
+  }
+  .cite-doc { font-size: 12.5px; font-weight: 600; }
+  .cite-txt { font-size: 13px; color: var(--text-2); line-height: 1.8; }
+  .cite-foot {
+    display: flex; gap: 12px; align-items: center; margin-top: 7px;
+    font-size: 11.5px; color: var(--muted); flex-wrap: wrap;
+  }
+
+  /* 反馈 */
+  .a-actions { display: flex; gap: 6px; margin-top: 11px; align-items: center; }
+  .act {
+    height: 27px; padding: 0 9px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+    font-size: 12px; display: inline-flex; align-items: center; gap: 4px; transition: .14s;
+  }
+  .act:hover { background: var(--surface-2); border-color: var(--muted); }
+  .act.on-up { background: var(--ok-weak); border-color: var(--ok); color: var(--ok); }
+  .act.on-down { background: var(--danger-weak); border-color: var(--danger); color: var(--danger); }
+  .a-stamp { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+
+  /* 输入区 */
+  .composer { flex: none; padding: 12px 28px 20px; background: var(--bg); }
+  .composer-inner { max-width: 820px; margin: 0 auto; }
+  .compose-box {
+    display: flex; align-items: flex-end; gap: 10px; padding: 9px 10px 9px 14px;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 13px; box-shadow: var(--shadow-sm); transition: .16s;
+  }
+  .compose-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
+  .compose-box textarea {
+    flex: 1; border: none; outline: none; resize: none; background: transparent;
+    color: var(--text); font-size: 14px; line-height: 1.65; max-height: 160px;
+    font-family: inherit; padding: 4px 0;
+  }
+  .compose-box textarea::placeholder { color: var(--muted); }
+  .send-btn {
+    width: 34px; height: 34px; border-radius: 9px; border: none; cursor: pointer;
+    background: var(--primary); color: #fff; display: grid; place-items: center;
+    font-size: 15px; transition: .15s; flex: none;
+  }
+  .send-btn:disabled { background: var(--border-strong); cursor: not-allowed; }
+  .send-btn:not(:disabled):hover { background: var(--primary-hover); }
+  .composer-foot {
+    display: flex; gap: 12px; align-items: center; margin-top: 9px;
+    font-size: 11.5px; color: var(--muted); padding: 0 3px; flex-wrap: wrap;
+  }
+  .scene-sel {
+    height: 25px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-2); font-size: 11.5px; padding: 0 6px;
+  }
+
+  /* 欢迎页 */
+  .welcome { max-width: 660px; margin: 6vh auto 0; text-align: center; }
+  .welcome h1 { font-size: 25px; letter-spacing: -.02em; }
+  .welcome p { margin-top: 9px; color: var(--text-2); font-size: 14px; }
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; text-align: left; }
+  .preset {
+    padding: 13px 15px; border-radius: 9px; cursor: pointer; transition: .16s;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+  }
+  .preset:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .preset .lbl { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .preset .q { font-size: 13px; line-height: 1.6; }
+
+  .typing { display: flex; gap: 4px; align-items: center; height: 20px; }
+  .typing i {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+    animation: blink 1.3s infinite; display: block;
+  }
+  .typing i:nth-child(2) { animation-delay: .18s; }
+  .typing i:nth-child(3) { animation-delay: .36s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
+
+  @media (max-width: 860px) {
+    .presets { grid-template-columns: 1fr; }
+    .chat-scroll, .composer { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* 经营看板（商家工作台首页，登录即见） */
+  .biz-board { flex: none; border-bottom: 1px solid var(--border); background: var(--surface); }
+  /* 经营看板入口（看板本体在独立页 /dashboard） */
+  .dash-link { flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 22px;
+    font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border);
+    background: var(--surface); text-decoration: none; }
+  .dash-link:hover { background: var(--surface-2); }
+  .dash-link-ico { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    background: rgba(43,92,155,.12); color: #2b5c9b; font-size: 12px; }
+  .dash-link-sub { font-size: 12px; color: var(--muted); }
+  .dash-link-arrow { margin-left: auto; color: var(--muted); }
+  .biz-head { display: flex; align-items: center; gap: 10px; padding: 9px 22px; }
+  .biz-title { font-size: 13.5px; font-weight: 650; }
+  .biz-shop { font-size: 12px; color: var(--muted); }
+  .biz-toggle { margin-left: auto; font-size: 12px; color: var(--muted); background: none;
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .biz-toggle:hover { color: var(--text); border-color: var(--muted); }
+  .biz-body { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 18px;
+    padding: 0 22px 13px; align-items: end; }
+  .biz-kpis { display: flex; flex-direction: column; gap: 7px; }
+  .biz-kpi { display: flex; justify-content: space-between; align-items: baseline; }
+  .biz-kpi .k { font-size: 12px; color: var(--muted); }
+  .biz-kpi .v { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .biz-chart svg { width: 100%; height: 92px; display: block; }
+  .biz-chart .cap { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .biz-risk { font-size: 12px; color: var(--muted); line-height: 1.75; }
+  .biz-risk b { color: var(--text); }
+  @media (max-width: 900px) { .biz-body { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">规</div>
+      <div>
+        <div class="brand-txt">丰贸电商平台</div>
+        <div class="brand-sub" id="ruleVer">规则库 —</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item active" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item" href="/admin" data-nav="/admin"><span class="ico">⛨</span>系统管理</a>
+    </nav>
+
+    <div class="nav-sep"></div>
+
+    <div class="sess-head">
+      <button class="sess-new" id="btnNew">＋ 新建会话</button>
+    </div>
+    <input class="sess-search" id="sessSearch" placeholder="搜索会话…">
+    <div class="sess-list" id="sessList"></div>
+
+    <div class="sidebar-foot">
+      <div class="user-chip" id="userChip"></div>
+    </div>
+  </aside>
+
+  <!-- 主区 -->
+  <main class="main">
+    <div class="topbar">
+      <h2 id="chatTitle">新会话</h2>
+      <div class="spacer"></div>
+      <div class="pills" id="topPills"></div>
+    </div>
+
+    <!-- 经营看板已独立成页：聊天页只留入口，不再被看板挤占 -->
+    <a class="dash-link" id="dashLink" href="/dashboard" style="display:none">
+      <span class="dash-link-ico">▤</span>
+      <span>经营看板</span>
+      <span class="dash-link-sub">销售额趋势 · 订单 · 风险与纠纷</span>
+      <span class="dash-link-arrow">→</span>
+    </a>
+
+    <div class="chat-wrap">
+      <div class="chat-scroll" id="scroll">
+        <div class="chat-inner" id="feed"></div>
+      </div>
+
+      <div class="composer">
+        <div class="composer-inner">
+          <div class="compose-box">
+            <textarea id="q" rows="1" placeholder="描述你的问题，例如：买家签收后申请仅退款，我多久内必须处理？"></textarea>
+            <button class="send-btn" id="btnSend" title="发送 (Enter)">↑</button>
+          </div>
+          <div class="composer-foot">
+            <span>Enter 发送 · Shift+Enter 换行</span>
+            <span style="flex:1"></span>
+            <label class="muted" style="display:flex;gap:5px;align-items:center">
+              场景
+              <select class="scene-sel" id="sceneSel">
+                <option value="">自动识别</option>
+                <option value="after_sale">售后/退换</option>
+                <option value="logistics">物流/发货</option>
+                <option value="ad_compliance">广告合规</option>
+                <option value="product_info">商品信息</option>
+                <option value="penalty">违规/处罚</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let me = null;
+let sessions = [];
+let currentSid = null;
+let sending = false;
+
+const PRESETS = [
+  ["售后", "买家签收后申请七天无理由退货，退货运费谁承担？"],
+  ["广告", "商品标题写「国家级」「最高级」会被怎么处理？"],
+  ["物流", "买家催发货，平台对发货时限是怎么规定的？"],
+  ["处罚", "店铺被扣 24 分会有什么处罚？"],
+];
+
+init();
+
+async function init() {
+  me = await initShell();
+  const stats = await api("/api/stats", { quiet: true }).catch(() => null);
+  if (stats) {
+    $("#ruleVer").textContent = `规则库 ${stats.rule_version}`;
+    // 技术/数据库指标只在系统端（管理员）展示；商家/运营/买家不需要看实现细节。
+    if (me.role === "admin") {
+      const rt = stats.runtime || {};
+      $("#topPills").innerHTML = `
+        <span class="pill">条款 <b>${stats.clauses}</b></span>
+        <span class="pill">向量 <b>${(rt.vector?.backend || "-").split("(")[0]}</b></span>
+        <span class="pill">精排 <b>${rt.rerank?.enabled ? "on" : "off"}</b></span>
+        <span class="pill">大模型 <b>${rt.llm?.available ? esc(rt.llm.model) : "模板"}</b></span>`;
+    } else {
+      $("#topPills").innerHTML = "";
+    }
+  }
+  await loadSessions();
+  renderWelcome();
+  bindKeys();
+
+  // 经营看板已独立成页；这里只给商家放一个入口
+  if (me.role === "merchant") {
+    const link = $("#dashLink");
+    if (link) link.style.display = "";
+  }
+}
+
+/* 首页看板：按角色取不同数据源（商家=经营 / 运营=平台 / 管理员=系统） */
+async function loadHomeBoard() {
+  const role = (me && me.role) || "";
+  try {
+    if (role === "merchant") {
+      renderBizBoard(await api("/api/stats/merchant", { quiet: true }));
+    } else if (role === "ops") {
+      renderOpsBoard(await api("/api/gov/dashboard", { quiet: true }));
+    } else if (role === "admin") {
+      renderSysBoard(await api("/api/admin/metrics", { quiet: true }));
+    }
+  } catch (e) { /* 无权限/无数据时保持隐藏 */ }
+}
+
+/* 统一填充看板容器 */
+function showBoard(title, sub, kpis, chartSvg, riskHtml, chartCap) {
+  $("#bizBoard").style.display = "";
+  $("#bizTitle").textContent = title;
+  $("#bizShop").textContent = sub || "";
+  $("#bizKpis").innerHTML = kpis;
+  if (chartCap) $("#bizChartCap").textContent = chartCap;
+  $("#bizChart").innerHTML = chartSvg;
+  $("#bizRisk").innerHTML = riskHtml;
+  $("#bizToggle").onclick = () => {
+    const body = $("#bizBody");
+    const hidden = body.style.display === "none";
+    body.style.display = hidden ? "" : "none";
+    $("#bizToggle").textContent = hidden ? "收起" : "展开";
+  };
+}
+
+/* 零依赖 SVG 柱状图：items=[{label,value}]，color 可为固定色或 (item)=>色。
+   柱宽封顶 64px 并居中——只有 3 根柱（L1/L2/L3）时不至于撑满整块变成色块。 */
+function barsSvg(items, color) {
+  const colOf = typeof color === "function" ? color : () => color;
+  const W = 600, H = 92, PAD = 8;
+  const n = Math.max(items.length, 1);
+  const max = Math.max(1, ...items.map(t => t.value));
+  const showLabel = n <= 8;
+  const bw = Math.min(64, (W - PAD * 2) / n);
+  const startX = PAD + (W - PAD * 2 - bw * n) / 2;
+  const baseY = showLabel ? H - 16 : H - 4;
+  return `<svg viewBox="0 0 ${W} ${H}">` +
+    items.map((t, i) => {
+      const h = Math.max(1, (t.value / max) * (baseY - 6));
+      const x = startX + i * bw + 3;
+      const yTop = baseY - h;
+      const label = showLabel
+        ? `<text x="${(x + (bw - 6) / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="var(--muted)">${esc(t.label)}</text>`
+        : "";
+      return `<rect x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" width="${(bw - 6).toFixed(1)}" height="${h.toFixed(1)}" fill="${colOf(t)}" rx="3"><title>${esc(t.label)} ${t.value}</title></rect>${label}`;
+    }).join("") + `</svg>`;
+}
+
+/* 商家端：本周/本月/本年销售额 + 近 14 日趋势 + 风险/纠纷 */
+function renderBizBoard(b) {
+  if (!b) return;
+  // 大额转「万」，中文电商后台的习惯口径；小额保留两位小数
+  const money = v => {
+    v = Number(v || 0);
+    return v >= 10000 ? "¥" + (v / 10000).toFixed(1) + " 万"
+                      : "¥" + v.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+  };
+  const unit = money(b.month.amount / Math.max(b.month.orders, 1));
+  showBoard("经营看板", b.shop || "",
+    `<div class="biz-kpi"><span class="k">本周销售额</span><span class="v">${money(b.week.amount)}</span></div>
+     <div class="biz-kpi"><span class="k">本月销售额</span><span class="v">${money(b.month.amount)}</span></div>
+     <div class="biz-kpi"><span class="k">本年销售额</span><span class="v">${money(b.year.amount)}</span></div>
+     <div class="biz-kpi"><span class="k">客单价</span><span class="v">${unit}</span></div>`,
+    barsSvg((b.trend || []).map(t => ({ label: t.date, value: t.amount })), "#2b5c9b"),
+    `<div>⚠ 虚假发货 <b>${b.risk.fake_ship}</b> 单</div>
+     <div>⚖ 投诉纠纷 <b>${b.disputes.total}</b> 单（处理中 ${b.disputes.open}）</div>
+     <div>📦 本周 <b>${b.week.orders}</b> 单 · 本月 <b>${b.month.orders}</b> 单 · 本年 <b>${b.year.orders}</b> 单</div>`,
+    "近 14 日销售额");
+}
+
+/* 平台端（ops）：纠纷/待人工/AI 自动结案率 + 按类型分布 + 风险摘要 */
+function renderOpsBoard(d) {
+  const m = (d && d.metrics) || null;
+  if (!m) return;
+  const pct = v => (Number(v || 0) * 100).toFixed(1) + "%";
+  const byType = Object.entries(m.by_type || {}).map(([k, v]) => ({ label: k, value: v }))
+    .sort((a, b) => b.value - a.value).slice(0, 10);
+  const penSum = Object.values(m.penalties || {}).reduce((a, b) => a + b, 0);
+  showBoard("平台运营总览", "全平台纠纷与风险",
+    `<div class="biz-kpi"><span class="k">纠纷总量</span><span class="v">${m.disputes}</span></div>
+     <div class="biz-kpi"><span class="k">待人工</span><span class="v">${m.pending_human}</span></div>
+     <div class="biz-kpi"><span class="k">AI 自动结案率</span><span class="v">${pct(m.ai_auto_rate)}</span></div>
+     <div class="biz-kpi"><span class="k">商家败诉率</span><span class="v">${pct(m.merchant_lost_rate)}</span></div>`,
+    barsSvg(byType, "#a855f7"),
+    `<div>⏱ 平均处理 <b>${m.avg_handle_hours}</b> 小时</div>
+     <div>⚖ 处罚中 <b>${penSum}</b> 项 · 累计扣分 <b>${m.points_total}</b></div>
+     <div>📮 申诉 <b>${m.appeal_total}</b> 单（采纳率 ${pct(m.appeal_adopt_rate)}）</div>`,
+    "纠纷按类型分布");
+}
+
+/* 系统端（admin）：用户/会话/消息/问答 + 条款风险分布 + 运行时 */
+function renderSysBoard(m) {
+  if (!m) return;
+  const rc = { L1: "#10b981", L2: "#f59e0b", L3: "#ef4444" };
+  const risk = (m.risk || []).map(r => ({ label: r.risk_level, value: r.n }));
+  const rt = m.runtime || {}, v = rt.vector || {}, rk = rt.rerank || {}, ll = rt.llm || {};
+  showBoard("系统总览", "账号 / 数据 / 运行时",
+    `<div class="biz-kpi"><span class="k">用户</span><span class="v">${(m.users || {}).total || 0}</span></div>
+     <div class="biz-kpi"><span class="k">会话</span><span class="v">${(m.sessions || {}).n || 0}</span></div>
+     <div class="biz-kpi"><span class="k">消息</span><span class="v">${(m.messages || {}).n || 0}</span></div>
+     <div class="biz-kpi"><span class="k">问答</span><span class="v">${(m.qa || {}).n || 0}</span></div>`,
+    barsSvg(risk, t => rc[t.label] || "#2b5c9b"),
+    `<div>📚 现行条款 <b>${rt.clauses || 0}</b> 条</div>
+     <div>🧭 向量 <b>${v.loaded ? "启用" : "降级"}</b> · 精排 <b>${rk.enabled ? "启用" : "降级"}</b></div>
+     <div>🤖 大模型 <b>${ll.available ? esc(ll.model) : "模板生成"}</b></div>`,
+    "条款风险分布（L1 可直接答 / L2 需条款 / L3 转人工）");
+}
+
+/* ---------------- 会话 ---------------- */
+
+async function loadSessions(keyword = "") {
+  const q = keyword ? `?q=${encodeURIComponent(keyword)}&limit=50` : "?limit=50";
+  const d = await api(`/api/chat/sessions${q}`, { quiet: true }).catch(() => ({ items: [] }));
+  sessions = d.items || [];
+  renderSessions();
+}
+
+function renderSessions() {
+  const box = $("#sessList");
+  if (!sessions.length) {
+    box.innerHTML = `<div style="padding:18px 10px;font-size:12px;color:rgba(255,255,255,.32);text-align:center">
+      还没有会话<br>点上方「新建会话」开始</div>`;
+    return;
+  }
+  box.innerHTML = sessions.map(s => `
+    <div class="sess ${s.id === currentSid ? "active" : ""}" data-id="${esc(s.id)}">
+      <div class="sess-title">${esc(s.title || "新会话")}</div>
+      <div class="sess-sub">${s.message_count} 条 · ${fmtTime(s.updated_at)}</div>
+      <div class="sess-ops">
+        <button class="sess-op" data-op="rename" title="重命名">✎</button>
+        <button class="sess-op" data-op="del" title="删除">✕</button>
+      </div>
+    </div>`).join("");
+}
+
+$("#sessList").addEventListener("click", async e => {
+  const item = e.target.closest(".sess");
+  if (!item) return;
+  const sid = item.dataset.id;
+  const op = e.target.dataset.op;
+
+  if (op === "del") {
+    e.stopPropagation();
+    if (!await confirmBox("删除会话", "会话和其中的消息都会被删除，无法恢复。", "删除", true)) return;
+    await api(`/api/chat/sessions/${sid}`, { method: "DELETE" });
+    toast("已删除", "ok");
+    if (sid === currentSid) { currentSid = null; renderWelcome(); }
+    await loadSessions($("#sessSearch").value.trim());
+    return;
+  }
+  if (op === "rename") {
+    e.stopPropagation();
+    const cur = sessions.find(s => s.id === sid);
+    const t = prompt("新的会话名称", cur ? cur.title : "");
+    if (!t || !t.trim()) return;
+    await api(`/api/chat/sessions/${sid}`, { method: "PATCH", body: { title: t.trim() } });
+    toast("已重命名", "ok");
+    await loadSessions($("#sessSearch").value.trim());
+    if (sid === currentSid) $("#chatTitle").textContent = t.trim();
+    return;
+  }
+  openSession(sid);
+});
+
+let searchTimer = null;
+$("#sessSearch").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadSessions(e.target.value.trim()), 260);
+});
+
+$("#btnNew").addEventListener("click", () => {
+  currentSid = null;
+  $("#chatTitle").textContent = "新会话";
+  renderWelcome();
+  renderSessions();
+  $("#q").focus();
+});
+
+async function openSession(sid) {
+  currentSid = sid;
+  renderSessions();
+  const feed = $("#feed");
+  feed.innerHTML = `<div class="empty"><span class="spinner"></span> 加载会话…</div>`;
+  try {
+    const d = await api(`/api/chat/sessions/${sid}`, { quiet: true });
+    $("#chatTitle").textContent = d.session.title || "会话";
+    feed.innerHTML = "";
+    if (!d.messages.length) { renderWelcome(); return; }
+    d.messages.forEach(m => {
+      if (m.role === "user") feed.insertAdjacentHTML("beforeend", userHTML(m.content));
+      else feed.insertAdjacentHTML("beforeend", answerHTML(m, m.feedback));
+    });
+    scrollBottom();
+  } catch (e) {
+    feed.innerHTML = `<div class="empty">会话加载失败</div>`;
+  }
+}
+
+/* ---------------- 渲染 ---------------- */
+
+function renderWelcome() {
+  $("#feed").innerHTML = `
+    <div class="welcome">
+      <h1>今天想确认哪条规则？</h1>
+      <p>系统会在 406 条法规与平台规则中定位条款，给出带出处的答复。</p>
+      <div class="presets">
+        ${PRESETS.map(([lbl, q]) => `
+          <div class="preset" data-q="${esc(q)}">
+            <div class="lbl">${esc(lbl)}</div>
+            <div class="q">${esc(q)}</div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+  $$(".preset").forEach(el => el.addEventListener("click", () => {
+    $("#q").value = el.dataset.q;
+    send();
+  }));
+}
+
+function userHTML(text) {
+  return `<div class="msg msg-q"><div class="bubble-q">${esc(text)}</div></div>`;
+}
+
+function answerHTML(d, fb) {
+  const cites = d.citations || [];
+  const lv = d.risk_level || "";
+  const noticeCls = lv === "L3" ? "danger" : lv === "L2" ? "warn" : "";
+  const citeHTML = cites.length ? `
+    <div class="cites">
+      <div class="cites-head"><span class="arrow">▶</span>
+        依据条款 ${cites.length} 条 <span style="opacity:.6">点开查看原文</span>
+      </div>
+      <div class="cites-body">
+        ${cites.map(c => `
+          <div class="cite-item">
+            <div class="cite-top">
+              <span class="cite-no">${esc(c.clause_no)}</span>
+              <span class="cite-doc">《${esc(c.doc_name)}》</span>
+              ${c.risk_level ? `<span class="badge ${esc(c.risk_level)}">${esc(c.risk_level)}</span>` : ""}
+              ${c.clause_path ? `<span class="small muted">${esc(c.clause_path)}</span>` : ""}
+            </div>
+            <div class="cite-txt">${esc(c.content)}</div>
+            <div class="cite-foot">
+              <span>生效 ${esc(c.effective_from || "—")}</span>
+              <span>相关度 ${Number(c.score || 0).toFixed(3)}</span>
+              ${c.source_url ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">查看官方原文</a>` : ""}
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>` : "";
+
+  return `
+    <div class="msg msg-a" data-mid="${d.id || ""}">
+      <div class="a-mark">规</div>
+      <div class="a-body">
+        <div class="a-meta">
+          ${riskBadge(lv)}
+          <span class="small muted">${esc(genLabel(d.generator, d.llm))}</span>
+          ${d.latency_ms ? `<span class="small muted">${d.latency_ms} ms</span>` : ""}
+        </div>
+        <div class="a-text">${esc(d.conclusion)}</div>
+        ${d.notice ? `<div class="a-notice ${noticeCls}">${esc(d.notice)}</div>` : ""}
+        ${citeHTML}
+        <div class="a-actions">
+          <button class="act ${fb === 1 ? "on-up" : ""}" data-fb="1">👍 有帮助</button>
+          <button class="act ${fb === -1 ? "on-down" : ""}" data-fb="-1">👎 不准确</button>
+          <span class="a-stamp">${esc(fmtTime(d.created_at))}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* 折叠 + 反馈（事件委托，新插入的节点也能响应） */
+$("#feed").addEventListener("click", async e => {
+  const head = e.target.closest(".cites-head");
+  if (head) { head.parentElement.classList.toggle("open"); return; }
+
+  const btn = e.target.closest("[data-fb]");
+  if (!btn) return;
+  const msgEl = btn.closest(".msg-a");
+  const mid = msgEl.dataset.mid;
+  if (!mid) return;
+  const score = Number(btn.dataset.fb);
+  try {
+    await api(`/api/chat/messages/${mid}/feedback`, { method: "POST", body: { score } });
+    $$("button[data-fb]", msgEl).forEach(b => b.classList.remove("on-up", "on-down"));
+    btn.classList.add(score === 1 ? "on-up" : "on-down");
+    toast("感谢反馈，已记录", "ok", 1800);
+  } catch (err) {}
+});
+
+/* ---------------- 发送 ---------------- */
+
+function scrollBottom() {
+  const s = $("#scroll");
+  s.scrollTop = s.scrollHeight;
+}
+
+$("#btnSend").addEventListener("click", send);
+
+$("#q").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+$("#q").addEventListener("input", e => {
+  e.target.style.height = "auto";
+  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+});
+
+function bindKeys() {
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault(); $("#sessSearch").focus();
+    }
+  });
+}
+
+async function send() {
+  const q = $("#q").value.trim();
+  if (!q || sending) return;
+  sending = true;
+  $("#btnSend").disabled = true;
+
+  const feed = $("#feed");
+  if (!feed.querySelector(".msg")) feed.innerHTML = "";
+  feed.insertAdjacentHTML("beforeend", userHTML(q));
+  const loadingId = "load-" + Date.now();
+  feed.insertAdjacentHTML("beforeend", `
+    <div class="msg msg-a" id="${loadingId}">
+      <div class="a-mark">规</div>
+      <div class="a-body">
+        <div class="a-meta"><span class="small muted">检索条款中…</span></div>
+        <div class="typing"><i></i><i></i><i></i></div>
+      </div>
+    </div>`);
+  $("#q").value = "";
+  $("#q").style.height = "auto";
+  scrollBottom();
+
+  try {
+    const d = await api("/api/chat/ask", {
+      method: "POST",
+      body: { query: q, session_id: currentSid },
+    });
+    $(`#${loadingId}`)?.remove();
+    feed.insertAdjacentHTML("beforeend", answerHTML({ ...d, id: d.message_id }, null));
+    currentSid = d.session_id;
+    if (d.session_title) $("#chatTitle").textContent = d.session_title;
+    await loadSessions($("#sessSearch").value.trim());
+    scrollBottom();
+  } catch (err) {
+    $(`#${loadingId}`)?.remove();
+    feed.insertAdjacentHTML("beforeend", `
+      <div class="msg msg-a">
+        <div class="a-mark" style="background:var(--danger)">!</div>
+        <div class="a-body"><div class="a-text" style="color:var(--danger)">${esc(err.message || "请求失败")}</div></div>
+      </div>`);
+    scrollBottom();
+  } finally {
+    sending = false;
+    $("#btnSend").disabled = false;
+    $("#q").focus();
+  }
+}
+</script>
+<script src="/assets/pet.js?v=20261031"></script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>电商规则合规助手 · 演示</title>
+<!--
+  单文件演示页：纯 HTML + CSS + JS，无框架、无构建、无 emoji。
+  数据来自 /api/demo/stats 与 /api/demo/ask（免鉴权，只回本次问答内容）。
+
+  关于"流式"：后端 /api/demo/ask 是一次性返回（不是 SSE）。
+  这里的流式是**前端逐字渲染**，目的是让演示有"正在回答"的过程感。
+  布局不跳的做法是：答案容器预留 min-height，控件在上方且流式期间置灰，
+  所以输入框和预设按钮不会被文字挤动。
+-->
+<style>
+  :root{
+    --ink:#15202b; --ink2:#4b5563; --ink3:#7b8794;
+    --line:#e2e6eb; --bg:#f5f6f8; --card:#ffffff; --accent:#2b5c9b;
+    --l1:#1f7a4d; --l1bg:#eef7f1; --l2:#8a6100; --l2bg:#fdf6e6; --l3:#a4232b; --l3bg:#fdf2f3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 72px}
+
+  header{position:sticky;top:0;z-index:10;background:var(--card);
+    border-bottom:1px solid var(--line);margin:0 -20px 22px;padding:14px 20px}
+  .hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 18px}
+  .brand{font-size:17px;font-weight:660;letter-spacing:.2px}
+  .kv{font-size:12.5px;color:var(--ink3)}
+  .kv b{color:var(--ink);font-weight:620;font-variant-numeric:tabular-nums}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .ask textarea{width:100%;min-height:74px;resize:vertical;border:1px solid var(--line);
+    border-radius:8px;padding:11px 12px;font:inherit;color:var(--ink);background:#fcfdfe;outline:none}
+  .ask textarea:focus{border-color:var(--accent)}
+  .row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:11px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);
+    background:#fff;color:var(--ink2);padding:7px 13px;transition:.12s}
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover:not(:disabled){background:#24507f;color:#fff}
+  .preset{font-size:13.5px}
+  .preset .tag{font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px}
+  .tag.l1{background:var(--l1bg);color:var(--l1)}
+  .tag.l2{background:var(--l2bg);color:var(--l2)}
+  .tag.l3{background:var(--l3bg);color:var(--l3)}
+
+  .answer{margin-top:18px;min-height:210px}
+  .answer.empty{display:flex;align-items:center;justify-content:center;color:var(--ink3);
+    font-size:13.5px;border-style:dashed}
+  .risk{display:inline-block;font-size:12px;font-weight:640;padding:2px 9px;border-radius:5px;
+    margin-bottom:11px;letter-spacing:.3px}
+  .risk.l1{background:var(--l1bg);color:var(--l1);border:1px solid #cfe6d8}
+  .risk.l2{background:var(--l2bg);color:var(--l2);border:1px solid #f0e2bf}
+  .risk.l3{background:var(--l3bg);color:var(--l3);border:1px solid #f2ccd0}
+
+  .l3border{border:1px solid var(--l3);border-left:5px solid var(--l3);box-shadow:0 1px 0 rgba(164,35,43,.06)}
+  .l2border{border-left:5px solid var(--l2)}
+  .l1border{border-left:5px solid var(--l1)}
+
+  h3{font-size:12.5px;color:var(--ink3);font-weight:640;letter-spacing:.6px;
+    margin:0 0 7px;text-transform:none}
+  .sec{margin-top:16px}
+  .sec:first-of-type{margin-top:0}
+  .conclusion{white-space:pre-wrap;word-break:break-word;min-height:52px;font-size:15.5px;line-height:1.78}
+  .notice{color:var(--ink2);font-size:13.5px;background:#fafbfc;border:1px solid var(--line);
+    border-radius:8px;padding:9px 12px}
+
+  details{border:1px solid var(--line);border-radius:8px;margin:7px 0;background:#fcfdfe}
+  details[open]{background:#fff}
+  summary{cursor:pointer;padding:9px 12px;font-size:13.5px;color:var(--ink2);list-style:none;
+    display:flex;gap:8px;align-items:baseline}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+";color:var(--ink3);font-weight:700;width:10px}
+  details[open] summary::before{content:"-"}
+  summary b{color:var(--ink);font-weight:620}
+  .src{padding:0 12px 12px;font-size:13.8px;color:var(--ink2);line-height:1.75;
+    border-top:1px dashed var(--line);margin-top:0;padding-top:11px}
+  .src .meta{color:var(--ink3);font-size:12px;margin-top:8px}
+
+  .ticket{margin-top:14px;border:1px solid #f2ccd0;background:var(--l3bg);
+    border-radius:9px;padding:13px 15px}
+  .ticket .t{font-weight:660;color:var(--l3);font-size:14px;margin-bottom:6px}
+  .ticket .n{font-family:ui-monospace,Consolas,monospace;background:#fff;border:1px solid #f2ccd0;
+    border-radius:5px;padding:1px 7px;color:var(--l3);font-weight:700}
+  .ticket .d{color:var(--ink2);font-size:13px}
+
+  .foot{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);
+    display:flex;flex-wrap:wrap;gap:8px 20px;color:var(--ink3);font-size:12.5px}
+  .foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .err{color:var(--l3);font-size:13.5px}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;
+    vertical-align:1px}
+  .dot.on{background:var(--l1)} .dot.off{background:#c4cbd4}
+  .hint{color:var(--ink3);font-size:12.5px;margin-top:9px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="hd">
+      <span class="brand">电商规则合规助手</span>
+      <span class="kv">规则库版本 <b id="ver">-</b></span>
+      <span class="kv">条款 <b id="clauses">-</b> 条</span>
+      <span class="kv">FAQ <b id="faqs">-</b> 条</span>
+      <span class="kv">生成 <b id="llm">-</b></span>
+    </div>
+  </header>
+
+  <div class="card ask">
+    <textarea id="q" placeholder="问一条平台规则，例如：已发货买家申请仅退款我多久处理"></textarea>
+    <div class="row">
+      <button class="primary" id="go">提问</button>
+      <button class="preset" data-q="平台内经营者是什么意思"><span class="tag l1">L1</span>平台内经营者是什么意思</button>
+      <button class="preset" data-q="已发货买家申请仅退款我多久处理"><span class="tag l2">L2</span>已发货买家申请仅退款我多久处理</button>
+      <button class="preset" data-q="虚标原价会被罚多少钱"><span class="tag l3">L3</span>虚标原价会被罚多少钱</button>
+    </div>
+    <div class="hint">系统只回答有条款依据的问题；涉及处罚金额与法律定性（L3）不代 AI 判断，直接转人工并生成工单。</div>
+  </div>
+
+  <div class="card answer empty" id="answer">在上方输入问题，或点一个预设问题</div>
+
+  <div id="foot"></div>
+</div>
+
+<script>
+(function(){
+  // 同源部署留空；双击打开本地文件（file://）时可用 ?api=http://127.0.0.1:8000
+  // ?q=问题 会在加载后自动提问 —— 给无交互的截图/回归留的口子，不必模拟点击。
+  var QS = new URLSearchParams(location.search);
+  var API = QS.get("api") || "";
+  var AUTQ = QS.get("q") || "";
+  var $ = function(id){ return document.getElementById(id); };
+  var busy = false;
+
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function pct(v){ return (v == null) ? "-" : v; }
+
+  fetch(API + "/api/demo/stats").then(function(r){ return r.json(); }).then(function(d){
+    $("ver").textContent = d.rule_version || "-";
+    $("clauses").textContent = d.clauses || 0;
+    $("faqs").textContent = d.faqs || 0;
+    $("llm").textContent = d.llm ? d.llm : "模板生成";
+  }).catch(function(){
+    $("ver").textContent = "离线";
+  });
+
+  // 逐字渲染：只影响文字出现节奏，不改变已完成内容的布局
+  function typeInto(node, text, done){
+    var i = 0, step = Math.max(1, Math.round(text.length / 90));
+    var timer = setInterval(function(){
+      i = Math.min(text.length, i + step);
+      node.textContent = text.slice(0, i);
+      if (i >= text.length){ clearInterval(timer); if (done) done(); }
+    }, 16);
+  }
+
+  function render(d){
+    var box = $("answer");
+    box.className = "card answer";
+    box.innerHTML = "";
+
+    var lv = d.risk_level || "L1";
+    box.className = "card answer " + (lv === "L3" ? "l3border" : (lv === "L2" ? "l2border" : "l1border"));
+
+    var nameMap = { L1: "L1 可直接作答", L2: "L2 含时限/附加条件", L3: "L3 高风险 · 转人工" };
+    box.appendChild(el("span", "risk " + lv.toLowerCase(), nameMap[lv] || lv));
+
+    var s1 = el("div", "sec");
+    s1.appendChild(el("h3", null, "结论"));
+    var concl = el("div", "conclusion");
+    s1.appendChild(concl);
+    box.appendChild(s1);
+
+    var s2 = el("div", "sec");
+    s2.appendChild(el("h3", null, "依据"));
+    var list = d.clauses || [];
+    if (!list.length){
+      s2.appendChild(el("div", "notice", "本次没有召回任何条款。"));
+    } else {
+      list.forEach(function(c){
+        var det = document.createElement("details");
+        var sum = document.createElement("summary");
+        var b = el("b", null, "《" + (c.doc_name || "") + "》" + (c.clause_no || ""));
+        sum.appendChild(b);
+        if (c.clause_path) sum.appendChild(el("span", null, c.clause_path));
+        det.appendChild(sum);
+        var src = el("div", "src");
+        src.appendChild(document.createTextNode(c.content || "（原文缺失）"));
+        var meta = el("div", "meta");
+        meta.textContent = "生效日期 " + (c.effective_from || "未标注")
+          + (c.source_url ? "　出处 " + c.source_url : "");
+        src.appendChild(meta);
+        det.appendChild(src);
+        s2.appendChild(det);
+      });
+    }
+    box.appendChild(s2);
+
+    var s3 = el("div", "sec");
+    s3.appendChild(el("h3", null, "注意事项"));
+    var extra = "";
+    if ((d.timeouts || []).length) extra = "本条时限：" + d.timeouts.join("、") + "。";
+    s3.appendChild(el("div", "notice", (extra ? extra + " " : "") + (d.notice || "无")));
+    box.appendChild(s3);
+
+    if (d.handoff){
+      var tk = el("div", "ticket");
+      tk.appendChild(el("div", "t", "已转人工 · 不代 AI 判断"));
+      var p1 = el("div", "d");
+      p1.textContent = "转人工原因：" + (d.handoff_reason || "高风险事项");
+      tk.appendChild(p1);
+      var p2 = el("div", "d");
+      p2.style.marginTop = "8px";
+      p2.textContent = "工单号 ";
+      if (d.ticket_no){
+        var n = el("span", "n", d.ticket_no);
+        p2.appendChild(n);
+        p2.appendChild(document.createTextNode("（已落 t_ticket，/service 坐席台可见）"));
+      } else {
+        p2.appendChild(document.createTextNode("生成失败，请到坐席台手工建单"));
+      }
+      tk.appendChild(p2);
+      box.appendChild(tk);
+    }
+
+    // 后端结论里有 "**...**" 这种强调写法（给会渲染 markdown 的客户端用）。
+    // 这里是纯文本渲染，去掉星号，否则用户看到的是字面的两个星。
+    typeInto(concl, (d.conclusion || "").split("**").join(""), null);
+
+    var foot = el("div", "foot");
+    function kv(k, v){
+      var s = el("span");
+      s.appendChild(document.createTextNode(k + " "));
+      s.appendChild(el("b", null, v));
+      return s;
+    }
+    foot.appendChild(kv("耗时", pct(d.latency_ms) + " ms"));
+    var hit = el("span");
+    var dot = el("span", "dot " + (d.cache_hit ? "on" : "off"));
+    hit.appendChild(dot);
+    hit.appendChild(document.createTextNode("缓存 " + (d.cache_hit ? "命中（未重算）" : "未命中（本次计算）")));
+    foot.appendChild(hit);
+    foot.appendChild(kv("引用条款", (d.clauses || []).length + " 条"));
+    foot.appendChild(kv("生成", d.generator === "template" ? "模板" : (d.generator || "-")));
+    foot.appendChild(kv("规则库", d.rule_version || "-"));
+    $("foot").innerHTML = "";
+    $("foot").appendChild(foot);
+  }
+
+  function ask(q){
+    if (busy || !q) return;
+    busy = true;
+    $("go").disabled = true;
+    Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){ b.disabled = true; });
+    var box = $("answer");
+    box.className = "card answer";
+    box.innerHTML = "";
+    box.appendChild(el("div", "conclusion", "检索中 ..."));
+
+    fetch(API + "/api/demo/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q })
+    }).then(function(r){
+      if (!r.ok) return r.json().then(function(e){ throw new Error(e.detail || ("HTTP " + r.status)); });
+      return r.json();
+    }).then(function(d){
+      render(d);
+    }).catch(function(e){
+      box.innerHTML = "";
+      $("foot").innerHTML = "";
+      box.appendChild(el("div", "err", "请求失败：" + e.message));
+    }).then(function(){
+      busy = false;
+      $("go").disabled = false;
+      Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){ b.disabled = false; });
+    });
+  }
+
+  $("go").addEventListener("click", function(){ ask($("q").value.trim()); });
+  $("q").addEventListener("keydown", function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ask($("q").value.trim());
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".preset"), function(b){
+    b.addEventListener("click", function(){
+      $("q").value = b.getAttribute("data-q");
+      ask(b.getAttribute("data-q"));
+    });
+  });
+
+  if (AUTQ){ $("q").value = AUTQ; setTimeout(function(){ ask(AUTQ); }, 60); }
+})();
+</script>
+</body>
+</html>

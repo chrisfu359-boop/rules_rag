@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平台监管工作台 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .pg { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .tabs { display: flex; gap: 2px; padding: 0 22px; border-bottom: 1px solid var(--border);
+          background: var(--surface); flex: none; }
+  .tab { padding: 9px 14px 10px; font-size: 13.5px; font-weight: 500; color: var(--text-2);
+         cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+         display: flex; align-items: center; gap: 6px; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab .dot { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+              background: var(--danger); color: #fff; font-size: 11px; font-weight: 600;
+              display: none; place-items: center; line-height: 17px; }
+  .tab .dot.on { display: grid; }
+  .pane { flex: 1; overflow: hidden; display: none; }
+  .pane.active { display: flex; }
+  .scroll { flex: 1; overflow-y: auto; padding: 20px 22px; }
+
+  /* ---------- 看板 ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+         padding: 14px 16px; }
+  .kpi .k { font-size: 12px; color: var(--muted); }
+  .kpi .v { font-size: 24px; font-weight: 650; letter-spacing: -.02em; margin-top: 4px; }
+  .kpi .s { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+  .kpi.danger .v { color: var(--danger); }
+  .kpi.ok .v { color: var(--ok); }
+
+  /* 处罚单表格：固定列宽，防止列被内容顶到换行 */
+  .pen-table { table-layout: fixed; font-size: 12.5px; }
+  .pen-table th, .pen-table td { padding: 9px 10px; vertical-align: top; }
+  .pen-table td { overflow: hidden; }
+
+  /* ---------- 仲裁台 ---------- */
+  .arb { display: grid; grid-template-columns: 320px 1fr; width: 100%; }
+  .arb-col { overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  .arb-col + .arb-col { border-left: 1px solid var(--border); }
+  .list-head { padding: 10px; border-bottom: 1px solid var(--border); flex: none; }
+  .filters { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+  .fchip { font-size: 12px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+           color: var(--text-2); border: 1px solid transparent; user-select: none; }
+  .fchip:hover { background: var(--surface-2); }
+  .fchip.on { background: var(--primary-weak); color: var(--primary); font-weight: 600; }
+  .dp-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .dp-item { padding: 10px 11px; border-radius: 8px; cursor: pointer; margin-bottom: 3px;
+             border: 1px solid transparent; }
+  .dp-item:hover { background: var(--surface-2); }
+  .dp-item.on { background: var(--primary-weak); border-color: rgba(37,99,235,.25); }
+  .dp-top { display: flex; align-items: center; gap: 6px; }
+  .dp-no { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .dp-title { font-size: 13px; font-weight: 600; margin-top: 3px; line-height: 1.45;
+              display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dp-foot { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 11.5px; color: var(--muted); }
+  .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 4px; font-weight: 600; flex: none; }
+  .tag.pending_human { background: var(--danger-weak); color: var(--danger); }
+  .tag.arbitrating { background: var(--warn-weak); color: var(--warn); }
+  .tag.resolved { background: var(--ok-weak); color: var(--ok); }
+  .tag.closed { background: var(--surface-2); color: var(--muted); }
+  .tag.overturned { background: var(--purple-weak); color: var(--purple); }
+  .tag.crit { background: var(--danger-weak); color: var(--danger); }
+
+  .detail { overflow-y: auto; padding: 20px 24px; }
+  .d-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+  .d-head h2 { font-size: 17px; line-height: 1.4; }
+  .d-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .meta .m { background: var(--surface); border: 1px solid var(--border);
+             border-radius: 8px; padding: 9px 11px; }
+  .meta .k { font-size: 11px; color: var(--muted); }
+  .meta .v { font-size: 13.5px; font-weight: 600; margin-top: 1px; }
+
+  .ai-box { border: 1px solid var(--border); border-radius: var(--radius);
+            background: var(--surface); margin-bottom: 16px; overflow: hidden; }
+  .ai-box .hd { padding: 10px 14px; border-bottom: 1px solid var(--border);
+                display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+                background: var(--surface-2); }
+  .ai-box .bd { padding: 14px; }
+  .conf-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden;
+              margin: 7px 0 4px; }
+  .conf-bar i { display: block; height: 100%; border-radius: 3px; }
+  .quote { border-left: 3px solid var(--primary); background: var(--primary-weak);
+           padding: 10px 13px; border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.7; }
+  .steps { margin: 9px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text-2); line-height: 1.75; }
+  .evtags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  .tl { display: flex; flex-direction: column; gap: 0; margin-bottom: 16px; }
+  .tl-item { display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
+  .tl-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+            font-size: 10px; font-weight: 700; color: #fff; background: var(--muted); flex: none; }
+  .tl-dot.buyer { background: #f59e0b; }
+  .tl-dot.merchant { background: #0ea5a5; }
+  .tl-dot.ai { background: var(--primary); }
+  .tl-dot.arbiter { background: var(--ok); }
+  .tl-dot.system { background: var(--muted); }
+  .tl-body { padding-bottom: 14px; border-left: 2px solid var(--border); padding-left: 12px;
+             margin-left: -12px; }
+  .tl-item:last-child .tl-body { border-left-color: transparent; padding-bottom: 0; }
+  .tl-who { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .tl-txt { font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .hint-row { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ---------- 通用列表 ---------- */
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .item { background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 14px 16px; }
+  .item-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .item-hd b { font-size: 13.5px; }
+  .item-bd { font-size: 13px; color: var(--text-2); line-height: 1.7; margin-top: 6px; }
+  .item-ft { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .lbl { font-size: 11.5px; color: var(--muted); }
+  .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  /* ---------- 三方对接条 ---------- */
+  .party-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+               margin-bottom: 16px; }
+  .party { border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px;
+           background: var(--surface); position: relative; }
+  .party .who { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .party .who i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .party.buyer .who i { background: #f59e0b; }
+  .party.shop .who i { background: #0ea5a5; }
+  .party.plat .who i { background: var(--primary); }
+  .party .st { font-size: 13px; font-weight: 600; margin-top: 3px; }
+  .party .sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  /* ---------- 订单事实 ---------- */
+  .facts { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+  .fact { display: grid; grid-template-columns: 15px 96px 1fr auto; gap: 9px;
+          align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .fact:last-child { border-bottom: 0; }
+  .fact .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+  .fact.miss .dot { background: var(--border-strong, #cbd5e1); }
+  .fact .fk { font-size: 12.5px; color: var(--text-2); }
+  .fact .ft { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              color: var(--text-2); }
+  .fact .fd { font-size: 11.5px; color: var(--muted); text-align: right; }
+  .sla-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  /* 商品行：仲裁员核对「买家说的是哪件货」的第一眼 */
+  .oitem { display: flex; gap: 10px; align-items: baseline; padding: 9px 11px; margin-bottom: 10px;
+           border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+  .oitem .t { font-size: 13.5px; font-weight: 600; }
+  .oitem .s { font-size: 12px; color: var(--muted); }
+
+  /* ---------- 商家答辩 ---------- */
+  .def-item { padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .def-item:last-child { border-bottom: 0; }
+  .def-who { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+  .def-txt { font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+
+  /* ---------- 来源客服会话 ---------- */
+  .chatlog { max-height: 280px; overflow-y: auto; border: 1px solid var(--border);
+             border-radius: 10px; background: var(--surface-2); padding: 8px 14px; }
+  .cl-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 10px;
+            padding: 6px 0; font-size: 12.5px; line-height: 1.65; align-items: start; }
+  .cl-row + .cl-row { border-top: 1px dashed var(--border); }
+  .cl-who { font-size: 11.5px; color: var(--muted); padding-top: 1px; white-space: nowrap; }
+  .cl-row.buyer .cl-who { color: var(--primary); }
+  .cl-row.agent .cl-who { color: var(--ok); }
+  .cl-row.system .cl-txt { color: var(--muted); font-style: italic; }
+  .cl-txt { color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+  .cl-at { font-size: 11px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">监</div>
+      <div><div class="brand-txt">平台监管</div><div class="brand-sub">纠纷 · 处罚 · 申诉</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item active" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item" href="/admin" data-nav="/admin"><span class="ico">◧</span>系统管理</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2>平台监管工作台</h2>
+      <span class="pill">平台方 · 案件三方对接</span>
+      <span class="pill" id="thrPill">自动裁决线 —</span>
+      <div class="spacer"></div>
+      <button class="btn btn-sm" onclick="toggleTheme()">主题</button>
+      <button class="btn btn-sm" onclick="reloadAll()">刷新</button>
+    </div>
+
+    <div class="pg">
+      <div class="tabs">
+        <div class="tab active" data-tab="board">监管看板</div>
+        <div class="tab" data-tab="arb">纠纷仲裁 <span class="dot" id="dotPending">0</span></div>
+        <div class="tab" data-tab="pen">处罚与申诉 <span class="dot" id="dotAppeal">0</span></div>
+        <div class="tab" data-tab="shop">店铺监管</div>
+      </div>
+
+      <!-- 看板 -->
+      <div class="pane active" id="pane-board">
+        <div class="scroll">
+          <div class="kpis" id="kpis"></div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head"><h3>店铺风险排行</h3>
+                <span class="small muted">按累计扣分排序</span></div>
+              <div class="card-body" style="padding:0"><div id="riskShops"></div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>最近纠纷</h3>
+                <span class="small muted">点击进入仲裁</span></div>
+              <div class="card-body" style="padding:0"><div id="recentList"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 仲裁 -->
+      <div class="pane" id="pane-arb">
+        <div class="arb">
+          <div class="arb-col">
+            <div class="list-head">
+              <input class="input" id="q" placeholder="搜编号 / 标题 / 买家" style="height:32px;font-size:12.5px">
+              <div class="filters" id="filters">
+                <div class="fchip on" data-st="">全部</div>
+                <div class="fchip" data-st="pending_human">待仲裁</div>
+                <div class="fchip" data-st="arbitrating">仲裁中</div>
+                <div class="fchip" data-st="resolved">已裁决</div>
+                <div class="fchip" data-st="overturned">已改判</div>
+              </div>
+            </div>
+            <div class="dp-list" id="dpList"></div>
+          </div>
+          <div class="arb-col">
+            <div class="detail" id="dpDetail">
+              <div class="empty"><div class="big">⚖</div><div>从左侧选择一条纠纷开始仲裁</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 处罚与申诉 -->
+      <div class="pane" id="pane-pen">
+        <div class="scroll">
+          <div class="grid-2" style="align-items:start;grid-template-columns:minmax(280px,.72fr) minmax(0,1.55fr)">
+            <div class="card">
+              <div class="card-head"><h3>申诉复核</h3>
+                <span class="small muted">AI 初审给建议，人工终审定性</span></div>
+              <div class="card-body"><div class="rows" id="appealList"></div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>处罚单</h3>
+                <span class="small muted">在罚与已撤销都在这里</span></div>
+              <div class="card-body" style="padding:0"><div id="penList"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 店铺 -->
+      <div class="pane" id="pane-shop">
+        <div class="scroll">
+          <div class="card">
+            <div class="card-head"><h3>店铺信用档案</h3>
+              <span class="small muted">扣分按自然年累计，节点处罚自动触发</span></div>
+            <div class="card-body" style="padding:0"><div id="shopTable"></div></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="card-head"><h3>处罚节点说明</h3></div>
+            <div class="card-body"><div id="nodeTable"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let META = null, ME = null, CUR = null;
+let FILTER = { st: "", q: "" };
+
+const ST_LABEL = { pending_human: "待仲裁", arbitrating: "仲裁中", resolved: "已裁决",
+                   closed: "已关闭", overturned: "已改判" };
+const LIAB_LABEL = { merchant: "商家责任", buyer: "买家责任", shared: "双方分担",
+                     insufficient: "证据不足" };
+const AP_LABEL = { pending: "待初审", human_review: "待复核", accepted: "申诉成立",
+                   rejected: "申诉驳回" };
+
+function stTag(s) {
+  return `<span class="tag ${esc(s)}">${esc(ST_LABEL[s] || s)}</span>`;
+}
+
+/* ---------------- 页签 ---------------- */
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "pane-" + name));
+  if (name === "board") loadBoard();
+  if (name === "pen") { loadAppeals(); loadPenalties(); }
+  if (name === "shop") loadShops();
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+/* ---------------- 看板 ---------------- */
+async function loadBoard() {
+  let d;
+  try { d = await api("/api/gov/dashboard"); } catch (e) { return; }
+  const m = d.metrics;
+  const kpi = [
+    ["纠纷总量", m.disputes, `待仲裁 ${m.pending_human}`, ""],
+    ["AI 自动结案率", Math.round(m.ai_auto_rate * 100) + "%",
+     `自动裁决 ${m.ai_auto} 单`, "ok"],
+    ["认定商家有责", Math.round(m.merchant_lost_rate * 100) + "%",
+     `${m.merchant_lost} / ${m.disputes} 单`, ""],
+    ["平均处理时长", m.avg_handle_hours >= 1 ? m.avg_handle_hours + "h"
+      : (m.disputes ? "<1h" : "—"), "从提交到结案", ""],
+    ["申诉受理率", Math.round(m.appeal_adopt_rate * 100) + "%",
+     `${m.appeal_adopted} / ${m.appeal_total} 单`, m.appeal_adopt_rate > .3 ? "danger" : ""],
+  ];
+  $("#kpis").innerHTML = kpi.map(([k, v, s, cls]) =>
+    `<div class="kpi ${cls}"><div class="k">${esc(k)}</div><div class="v">${esc(String(v))}</div>
+     <div class="s">${esc(s)}</div></div>`).join("");
+
+  $("#riskShops").innerHTML = (m.risk_shops || []).map(s => {
+    const risk = Math.max(0, Math.min(100, 100 - Number(s.credit_score || 0)));
+    const col = risk > 20 ? "#ef4444" : risk > 5 ? "#f59e0b" : "#10b981";
+    return `
+    <div style="padding:11px 16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${esc(s.name)}</div>
+          <div class="small muted">${esc(s.level)} · 纠纷 ${s.dispute_lost}/${s.dispute_count} 判商家责</div>
+        </div>
+        <div style="text-align:right">
+          <div class="mono" style="font-size:15px;font-weight:650">${s.credit_score}</div>
+          <div class="small muted">${esc(String(META.status_label[s.status] || s.status))}${
+            s.status !== "normal" && s.suspend_until
+              ? " 至 " + esc(String(s.suspend_until).slice(5, 10)) : ""}</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;height:6px;border-radius:3px;background:var(--border);overflow:hidden">
+          <div style="height:100%;width:${risk}%;background:${col};transition:width .4s"></div>
+        </div>
+        <span class="small muted" style="width:44px;text-align:right">风险 ${risk}</span>
+      </div>
+    </div>`; }).join("") || `<div class="empty"><div>暂无数据</div></div>`;
+
+  $("#recentList").innerHTML = (d.recent || []).map(r => `
+    <div class="recent-row" data-id="${r.id}"
+         style="padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${stTag(r.status)}
+        <span style="font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;
+                     text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>
+        <span class="small muted">${esc(fmtTime(r.created_at))}</span>
+      </div>
+      <div class="small muted" style="margin-top:2px">${esc(r.no)} · ${esc(r.type_label)}</div>
+    </div>`).join("") || `<div class="empty"><div>暂无纠纷</div></div>`;
+
+  document.querySelectorAll(".recent-row").forEach(el => el.onclick = () => {
+    switchTab("arb");
+    openDispute(Number(el.dataset.id));
+  });
+
+  $("#dotPending").textContent = m.pending_human;
+  $("#dotPending").classList.toggle("on", m.pending_human > 0);
+  const ap = (m.appeals || {}).human_review || 0;
+  $("#dotAppeal").textContent = ap;
+  $("#dotAppeal").classList.toggle("on", ap > 0);
+}
+
+/* ---------------- 纠纷列表 ---------------- */
+async function loadDisputes() {
+  const p = new URLSearchParams();
+  if (FILTER.st) p.set("status", FILTER.st);
+  if (FILTER.q) p.set("q", FILTER.q);
+  let d;
+  try { d = await api("/api/gov/disputes?" + p.toString()); } catch (e) { return; }
+  if (!d.items.length) {
+    $("#dpList").innerHTML = `<div class="empty"><div>没有符合条件的纠纷</div></div>`;
+    return;
+  }
+  $("#dpList").innerHTML = d.items.map(x => `
+    <div class="dp-item ${CUR === x.id ? "on" : ""}" data-id="${x.id}">
+      <div class="dp-top">
+        ${stTag(x.status)}
+        <span class="dp-no">${esc(x.dispute_no)}</span>
+        <div style="flex:1"></div>
+        <span class="small muted">${esc(fmtTime(x.created_at))}</span>
+      </div>
+      <div class="dp-title">${esc(x.title)}</div>
+      <div class="dp-foot">
+        <span>${esc(x.type_label)}</span>
+        <span>·</span>
+        <span>${x.order_no ? "订单 " + esc(x.order_no.slice(-8)) : "无订单号"}</span>
+        <span>·</span>
+        <span>置信 ${(x.ai_confidence * 100).toFixed(0)}%</span>
+        ${x.ai_points ? `<span>·</span><span>${x.ai_points} 分</span>` : ""}
+      </div>
+    </div>`).join("");
+  document.querySelectorAll(".dp-item").forEach(el =>
+    el.onclick = () => openDispute(Number(el.dataset.id)));
+
+  // 同纠纷中心：右侧裁决区空着会被误判成加载失败，默认打开第一条。
+  if (!CUR || !d.items.some(x => x.id === CUR)) openDispute(d.items[0].id);
+}
+
+document.querySelectorAll("#filters .fchip").forEach(el => el.onclick = () => {
+  document.querySelectorAll("#filters .fchip").forEach(x => x.classList.remove("on"));
+  el.classList.add("on");
+  FILTER.st = el.dataset.st;
+  loadDisputes();
+});
+let qTimer = null;
+$("#q").oninput = e => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { FILTER.q = e.target.value.trim(); loadDisputes(); }, 260);
+};
+
+/* ---------------- 纠纷详情 ---------------- */
+async function openDispute(id) {
+  CUR = id;
+  document.querySelectorAll(".dp-item").forEach(el =>
+    el.classList.toggle("on", Number(el.dataset.id) === id));
+  let d;
+  try { d = await api("/api/gov/disputes/" + id); } catch (e) { return; }
+  renderDetail(d);
+}
+
+/* ---------------- 三方对接：订单事实 + 商家答辩 ----------------
+   仲裁台最容易做成「一张表格 + 一个打分框」，那样和商家自己的纠纷页没有区别。
+   平台真正多出来的是三件事：看得见买家端、看得见商家端、看得见订单这个公共事实。
+   所以详情页固定按 三方状态 → 订单事实 → 买家诉求 → 商家答辩 → AI 定责 排列。 */
+
+function hrs(h) {
+  if (h == null) return "—";
+  return h >= 24 ? `${(h / 24).toFixed(1)} 天` : `${h.toFixed(1)} 小时`;
+}
+
+function partyBar(d) {
+  const x = d.dispute, c = d.credit || {};
+  const mSay = (d.messages || []).filter(m => m.role === "merchant");
+  const platSt = { pending_human: "待受理", arbitrating: "仲裁中", resolved: "已裁决",
+                   closed: "已关闭", overturned: "已改判" }[x.status] || x.status;
+  return `<div class="party-bar">
+    <div class="party buyer"><div class="who"><i></i>买家端</div>
+      <div class="st">${esc(x.buyer_name || "买家")}</div>
+      <div class="sub">已提诉求 · ${(x.evidence || []).length} 份凭证</div></div>
+    <div class="party shop"><div class="who"><i></i>商家端</div>
+      <div class="st">${esc((d.shop || {}).name || "—")}</div>
+      <div class="sub">${mSay.length ? `已答辩 ${mSay.length} 次` : "尚未答辩"} · 信用 ${c.credit_score ?? 100}</div></div>
+    <div class="party plat"><div class="who"><i></i>平台端</div>
+      <div class="st">${esc(platSt)}</div>
+      <div class="sub">${d.can_arbitrate ? "由你裁决" : "只读查看"} · 店铺${esc(c.status_label || "正常")}</div></div>
+  </div>`;
+}
+
+function sessionCard(d) {
+  const s = d.session;
+  if (!s) return "";
+  const ms = s.messages || [];
+  const lab = { buyer: "买家", bot: "机器人", agent: "客服", system: "系统" };
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h3>来源客服会话</h3>
+      <span class="mono small muted">${esc(s.id)}</span>
+      <div style="flex:1"></div>
+      <span class="badge neutral">${esc(s.status_label || s.status)}</span>
+      <span class="small muted">${esc(s.channel || "")} · ${ms.length} 条记录</span>
+    </div>
+    <div class="card-body">
+      <div class="small muted" style="margin-bottom:10px;line-height:1.7">
+        这条纠纷是从客服会话转来的。下面是买家当时的原始表述，买家、商家、平台看的是同一份记录；
+        它只作陈述证据，不参与 AI 定责。
+      </div>
+      <div class="chatlog">${ms.map(m => `
+        <div class="cl-row ${esc(m.role)}">
+          <span class="cl-who">${esc(lab[m.role] || m.role)}</span>
+          <span class="cl-txt">${esc(m.content || "")}</span>
+          <span class="cl-at">${esc(fmtFull(m.created_at))}</span>
+        </div>`).join("") || `<span class="small muted">会话无记录</span>`}</div>
+    </div>
+  </div>`;
+}
+
+function orderCard(d) {
+  const o = d.order;
+  if (!o) {
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>订单事实</h3><span class="badge L2">未关联订单</span></div>
+      <div class="card-body"><div class="small muted" style="line-height:1.75">
+        这条纠纷没有挂订单号，平台手上只有双方各自的陈述，没有可核对的客观时间戳。
+        「是不是超时」这类争议必须先让买家补单号——没有事实底座的裁决，申诉时站不住。</div></div>
+    </div>`;
+  }
+  const rows = [];
+  rows.push({ k: "买家付款", t: o.paid_at, d: "" });
+  rows.push({ k: "商家发货", t: o.shipped_at,
+              d: o.ship_hours == null ? (o.paid_at ? "至今未发货" : "")
+                : `${hrs(o.ship_hours)} · 时效 ${o.ship_sla}h` });
+  const lg = o.logistics || {};
+  // 揽收时间是"虚假发货"唯一可核验的事实：商家点一下发货按钮不算发货，
+  // 包裹进了承运方网络才算。这一行以前根本不存在，所以规则 2.4 的后半句判不出来。
+  rows.push({ k: "物流揽收", t: lg.picked_at,
+              d: lg.pick_hours != null ? `发货后 ${hrs(lg.pick_hours)} 揽收`
+                : (o.shipped_at ? `已超 ${hrs(lg.pick_wait_hours)} 无揽收` : "") });
+  rows.push({ k: "买家签收", t: o.received_at, d: o.recv_hours == null ? "" : hrs(o.recv_hours) });
+  if (o.aftersale_applied_at)
+    rows.push({ k: `申请${o.aftersale_type || "售后"}`, t: o.aftersale_applied_at,
+                d: `${hrs(o.aftersale_wait_hours)}未处理` });
+
+  const sla = [];
+  if (o.ship_open)
+    sla.push(`<span class="badge L3">付款 ${hrs(o.ship_hours)} 仍未发货</span>`);
+  else if (o.ship_late)
+    sla.push(`<span class="badge L3">发货超时 ${hrs(o.ship_hours)} &gt; ${o.ship_sla}h</span>`);
+  else if (o.ship_hours != null)
+    sla.push(`<span class="badge L1">发货 ${hrs(o.ship_hours)} ≤ ${o.ship_sla}h 时效内</span>`);
+  if (o.fake_ship)
+    sla.push(`<span class="badge L3">虚假发货：${o.no_tracking ? "无运单号"
+      : `发货 ${hrs(lg.pick_wait_hours)} 无揽收`}（规则 2.4 扣 4 分）</span>`);
+  if (o.aftersale_late)
+    sla.push(`<span class="badge L3">售后等待 ${hrs(o.aftersale_wait_hours)} &gt; ${o.aftersale_sla}h</span>`);
+  else if (o.aftersale_wait_hours != null)
+    sla.push(`<span class="badge L1">售后处理 ${hrs(o.aftersale_wait_hours)} ≤ ${o.aftersale_sla}h</span>`);
+
+  const it = o.item || {};
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h3>订单事实</h3>
+      <span class="mono small muted">${esc(o.order_no)}</span>
+      <div style="flex:1"></div>
+      <span class="badge neutral">${esc(o.status)}</span>
+      <span class="small muted">${esc(o.category)} · ¥${(o.amount || 0).toFixed(2)}</span>
+    </div>
+    <div class="card-body">
+      ${it.title ? `<div class="oitem">
+        <span class="t">${esc(it.title)}</span>
+        ${it.sku ? `<span class="s">${esc(it.sku)}</span>` : ""}
+        <div style="flex:1"></div>
+        <span class="s mono">×${it.qty}</span>
+        <span class="s mono">单价 ¥${(it.unit_price || 0).toFixed(2)}</span>
+      </div>` : ""}
+      <div class="facts">
+        ${rows.map(r => `<div class="fact ${r.t ? "" : "miss"}">
+          <div class="dot"></div><div class="fk">${esc(r.k)}</div>
+          <div class="ft">${r.t ? esc(fmtFull(r.t)) : "—"}</div>
+          <div class="fd">${esc(r.d)}</div></div>`).join("")}
+      </div>
+      <div class="facts" style="margin-top:6px">
+        <div class="fact ${lg.tracking_no ? "" : "miss"}">
+          <div class="dot"></div><div class="fk">承运 / 运单号</div>
+          <div class="ft">${esc(lg.carrier || "—")}</div>
+          <div class="fd">${esc(lg.tracking_no || "未上传")}</div></div>
+      </div>
+      ${sla.length ? `<div class="sla-row">${sla.join("")}</div>` : ""}
+      ${o.amount_mismatch ? `<div class="small" style="margin-top:8px;color:var(--warn,#b45309)">
+        商品小计 ¥${(it.total || 0).toFixed(2)} 与实付 ¥${(o.amount || 0).toFixed(2)} 不一致，
+        退款金额需按实付核算。</div>` : ""}
+      ${o.remarks ? `<div class="small muted" style="margin-top:8px">订单备注：${esc(o.remarks)}</div>` : ""}
+      <div class="small muted" style="margin-top:8px;line-height:1.7">
+        以上时间戳来自订单库，买家、商家、平台三端同源显示；AI 的时效判断也只读这份数据。</div>
+    </div>
+  </div>`;
+}
+
+function defenseCard(d) {
+  const ms = (d.messages || []).filter(m => m.role === "merchant");
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h3>商家答辩</h3>
+      <div style="flex:1"></div>
+      <span class="small muted">${ms.length ? ms.length + " 条陈述" : "尚未答辩"}</span></div>
+    <div class="card-body">
+      ${ms.length ? ms.map(m => `<div class="def-item">
+          <div class="def-who">${esc(fmtFull(m.created_at))}</div>
+          <div class="def-txt">${esc(m.content)}</div></div>`).join("")
+        : `<div class="small muted" style="line-height:1.75">
+            商家还没有提交答辩。平台不会因为「没答辩」直接判商家有责，但视为放弃陈述机会。
+            AI 已自动结案的案件，商家仍可在结案后 48 小时内答辩触发一次重新评估。</div>`}
+    </div></div>`;
+}
+
+function renderDetail(d) {
+  const x = d.dispute, a = d.analysis, c = d.credit || {};
+  const conf = Math.round((x.ai_confidence || 0) * 100);
+  const confColor = x.ai_confidence >= META.threshold ? "var(--ok)"
+    : x.ai_confidence >= 0.55 ? "var(--warn)" : "var(--danger)";
+  const crit = (META.types.find(t => t.key === x.dtype) || {}).severity === "critical";
+
+  const ev = (x.evidence || []).map(e =>
+    `<span class="pill">${esc(e.k)}${e.v ? "：" + esc(e.v) : ""}</span>`).join("")
+    || `<span class="small muted">买家未提交结构化凭证</span>`;
+
+  const tl = (d.messages || []).map(m => {
+    const who = { buyer: "买家", merchant: "商家", ai: "AI 调解员",
+                  arbiter: "平台仲裁员", system: "系统" }[m.role] || m.role;
+    const ini = { buyer: "买", merchant: "商", ai: "AI", arbiter: "裁", system: "·" }[m.role] || "·";
+    return `<div class="tl-item">
+      <div class="tl-dot ${esc(m.role)}">${esc(ini)}</div>
+      <div class="tl-body">
+        <div class="tl-who">${esc(who)} · ${esc(fmtFull(m.created_at))}</div>
+        <div class="tl-txt">${esc(m.content)}</div>
+      </div></div>`;
+  }).join("");
+
+  const pens = (d.penalties || []).length ? `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>关联处罚</h3></div>
+      <div class="card-body" style="padding:0">
+        <table class="table"><thead><tr><th>类型</th><th>分值</th><th>依据</th><th>状态</th><th>生效</th></tr></thead>
+        <tbody>${d.penalties.map(p => `<tr>
+          <td>${esc(p.type_label)}${p.node ? ` <span class="small muted">节点 ${esc(p.node)}</span>` : ""}</td>
+          <td class="mono">${p.points || "—"}</td>
+          <td class="small">${esc(p.basis || "—")}</td>
+          <td>${penBadge(p.status)}</td>
+          <td class="small muted">${esc(fmtFull(p.effective_at))}</td>
+        </tr>`).join("")}</tbody></table>
+      </div></div>` : "";
+
+  const canArb = d.can_arbitrate && ["pending_human", "arbitrating"].includes(x.status);
+  const form = canArb ? verdictForm(d) : "";
+
+  const arbActions = d.can_arbitrate && ["pending_human", "arbitrating"].includes(x.status) ? `
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      ${x.status === "pending_human"
+        ? `<button class="btn btn-sm" onclick="doClaim(${x.id})">受理此案</button>` : ""}
+      <button class="btn btn-sm btn-danger" onclick="doClose(${x.id})">关闭纠纷</button>
+    </div>` : "";
+
+  const claimCard = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>买家诉求与凭证</h3>
+        <div style="flex:1"></div>
+        <span class="small muted">${(x.evidence || []).length} 份凭证 · 诉求 ¥${(x.claim_amount || 0).toFixed(2)}</span></div>
+      <div class="card-body">
+        <div style="font-size:13px;line-height:1.7">${esc(x.claim || "（未填写）")}</div>
+        <div class="evtags">${ev}</div>
+      </div>
+    </div>`;
+
+  $("#dpDetail").innerHTML = `
+    <div class="d-head">
+      ${stTag(x.status)}
+      ${crit ? '<span class="tag crit">严重违规</span>' : ""}
+      <h2 style="flex:1">${esc(x.title)}</h2>
+    </div>
+    <div class="d-sub">${esc(x.dispute_no)} · ${esc(x.type_label)} · 提交于 ${esc(fmtFull(x.created_at))}
+      ${x.sla_due && x.status === "pending_human" ? ` · 应处理时限 ${esc(fmtFull(x.sla_due))}` : ""}</div>
+
+    <div class="meta">
+      <div class="m"><div class="k">被投诉店铺</div><div class="v">${esc((d.shop || {}).name || "—")}</div></div>
+      <div class="m"><div class="k">买家</div><div class="v">${esc(x.buyer_name || "—")}</div></div>
+      <div class="m"><div class="k">诉求金额</div><div class="v">¥${(x.claim_amount || 0).toFixed(2)}</div></div>
+      <div class="m"><div class="k">店铺信用</div><div class="v">${c.credit_score || 100} · ${esc(c.status_label || "")}</div></div>
+    </div>
+
+    ${arbActions}
+
+    ${partyBar(d)}
+    ${orderCard(d)}
+    ${sessionCard(d)}
+    ${claimCard}
+    ${defenseCard(d)}
+
+    <div class="ai-box">
+      <div class="hd">AI 调解员意见
+        <div style="flex:1"></div>
+        <span class="badge ${a.auto_ok ? "L1" : "L2"}">${a.auto_ok ? "可自动裁决" : "需人工仲裁"}</span>
+      </div>
+      <div class="bd">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="lbl">置信度</span>
+          <b style="font-size:15px;color:${confColor}">${conf}%</b>
+          <span class="lbl">自动裁决线 ${Math.round(META.threshold * 100)}%</span>
+        </div>
+        <div class="conf-bar"><i style="width:${conf}%;background:${confColor}"></i></div>
+        <div class="small muted">定责：${esc(LIAB_LABEL[a.liability] || a.liability)}
+          ${a.remedy && a.remedy !== "none" ? " · 方案：" + esc(META.remedies[a.remedy] || a.remedy) : ""}
+          ${a.amount ? " · 金额 ¥" + a.amount.toFixed(2) : ""}
+          ${a.points ? " · 建议扣 " + a.points + " 分" : ""}
+          ${a.clause ? " · 依据 " + esc((a.doc || "") + a.clause) : " · 无对应扣分条款"}</div>
+        <div class="quote" style="margin-top:12px">${esc(x.ai_reasoning || "（无）")}</div>
+        <div class="steps">${(a.steps || []).map(s => `<li>${esc(s)}</li>`).join("")}</div>
+        <div style="margin-top:10px">
+          <span class="lbl">置信度构成</span>
+          <div class="small muted" style="line-height:1.7">${(a.conf_steps || []).map(esc).join("　")}</div>
+        </div>
+        ${a.missing && a.missing.length ? `<div class="hint" style="color:var(--warn);margin-top:8px">
+          缺失材料：${esc(a.missing.join("、"))}</div>` : ""}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head"><h3>处理过程</h3>
+        <span class="small muted">${(d.messages || []).length} 条记录</span></div>
+      <div class="card-body"><div class="tl">${tl}</div></div>
+    </div>
+
+    ${pens}
+    ${form}
+  `;
+}
+
+/* ---------------- 裁决表单 ---------------- */
+function verdictForm(d) {
+  const a = d.analysis, x = d.dispute;
+  const types = META.types.find(t => t.key === x.dtype) || {};
+  return `
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-head"><h3>仲裁裁决</h3>
+      <span class="small muted">裁决生效后立即生成处罚单，商家可在 ${META.appeal_days} 天内申诉</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>责任认定</label>
+          <select class="select" id="vLiab">
+            ${["merchant", "buyer", "shared", "insufficient"].map(k =>
+              `<option value="${k}" ${a.liability === k ? "selected" : ""}>${esc(LIAB_LABEL[k])}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>处理方案</label>
+          <select class="select" id="vRemedy">
+            ${Object.entries(META.remedies).map(([k, v]) =>
+              `<option value="${k}" ${a.remedy === k ? "selected" : ""}>${esc(v)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>赔付金额（元）</label>
+          <input class="input" id="vAmount" type="number" step="0.01" min="0" value="${a.amount || 0}">
+        </div>
+        <div class="field">
+          <label>扣分（0~48）</label>
+          <input class="input" id="vPoints" type="number" step="0.5" min="0" max="48" value="${a.points || 0}">
+          <div class="hint-row">依据条款：${esc(types.clause ? (types.doc || "") + " " + types.clause : "无")}</div>
+        </div>
+        <div class="field">
+          <label>条款号</label>
+          <input class="input" id="vClause" placeholder="如 2.2" value="${esc(a.clause || types.clause || "")}">
+        </div>
+        <div class="field">
+          <label>附加处罚</label>
+          <select class="select" id="vPtype">
+            <option value="">不附加</option>
+            ${["warning", "marketing_ban", "downgrade", "publish_ban", "suspend", "close"]
+              .filter(k => k !== "warning" || true)
+              .map(k => `<option value="${k}">${esc(META.penalty_types[k])}</option>`).join("")}
+          </select>
+          <div class="hint-row">停业/降权等会立即改变店铺经营状态</div>
+        </div>
+        <div class="field full">
+          <label>裁决理由（必填）</label>
+          <textarea class="input" id="vNote" rows="4"
+            placeholder="写清事实、依据条款、以及为什么这样判。申诉复核会以这段文字为准。">${esc(a.liability === "merchant" ? "" : "")}</textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+        <button class="btn btn-primary" onclick="doVerdict(${x.id})">提交裁决</button>
+        <span class="small muted">提交后不可修改，如需变更请走申诉复核</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function doClaim(id) {
+  try {
+    await api(`/api/gov/disputes/${id}/claim`, { method: "POST" });
+    toast("已受理", "ok");
+    openDispute(id); loadDisputes();
+  } catch (e) {}
+}
+
+async function doClose(id) {
+  const ok = await confirmBox("关闭纠纷", "确认关闭这条纠纷？关闭后双方不能再补充材料。", "关闭", true);
+  if (!ok) return;
+  try {
+    await api(`/api/gov/disputes/${id}/close`, { method: "POST", body: { reason: "平台关闭" } });
+    toast("已关闭", "ok");
+    openDispute(id); loadDisputes(); loadBoard();
+  } catch (e) {}
+}
+
+async function doVerdict(id) {
+  const body = {
+    liability: $("#vLiab").value,
+    remedy: $("#vRemedy").value,
+    amount: Number($("#vAmount").value || 0),
+    points: Number($("#vPoints").value || 0),
+    clause: $("#vClause").value.trim(),
+    note: $("#vNote").value.trim(),
+    ptype: $("#vPtype").value,
+    days: $("#vPtype").value === "suspend" ? 7 : null,
+  };
+  if (!body.note) { toast("请填写裁决理由", "err"); return; }
+  const ok = await confirmBox("提交裁决",
+    `责任认定：${LIAB_LABEL[body.liability]}；扣 ${body.points} 分`
+    + (body.ptype ? `；附加处罚：${META.penalty_types[body.ptype]}` : ""),
+    "确认提交");
+  if (!ok) return;
+  try {
+    await api(`/api/gov/disputes/${id}/verdict`, { method: "POST", body });
+    toast("裁决已生效，处罚单已生成", "ok");
+    openDispute(id); loadDisputes(); loadBoard();
+  } catch (e) {}
+}
+
+/* ---------------- 申诉 ---------------- */
+async function loadAppeals() {
+  let d;
+  try { d = await api("/api/gov/appeals"); } catch (e) { return; }
+  if (!d.items.length) {
+    $("#appealList").innerHTML = `<div class="empty"><div>暂无申诉</div></div>`;
+    return;
+  }
+  $("#appealList").innerHTML = d.items.map(a => `
+    <div class="item">
+      <div class="item-hd">
+        <b>#${a.id} ${esc(a.target_type === "penalty" ? "处罚申诉" : "裁决申诉")}</b>
+        <span class="tag ${a.status === "accepted" ? "resolved" : a.status === "rejected" ? "closed" : "arbitrating"}">
+          ${esc(AP_LABEL[a.status] || a.status)}</span>
+        <span class="small muted">${esc(a.shop_name)} · ${esc(a.appellant_name)}（${a.appellant_role === "merchant" ? "商家" : "买家"}）</span>
+        <div style="flex:1"></div>
+        <span class="small muted">${esc(fmtTime(a.created_at))}</span>
+      </div>
+      <div class="item-bd">
+        <div>${esc(a.reason)}</div>
+        ${(a.evidence || []).length ? `<div class="evtags">${a.evidence.map(e =>
+          `<span class="pill">${esc(e.k)}${e.v ? "：" + esc(e.v) : ""}</span>`).join("")}</div>` : ""}
+        ${a.ai_view ? `<div class="quote" style="margin-top:8px;font-size:12.5px">
+          <b>AI 初审（${(a.ai_confidence * 100).toFixed(0)}%，建议${a.ai_suggest === "accept" ? "受理" : "驳回"}）</b><br>${esc(a.ai_view)}</div>` : ""}
+        ${a.result ? `<div class="small muted" style="margin-top:8px">复核意见：${esc(a.result)}</div>` : ""}
+      </div>
+      ${["pending", "human_review"].includes(a.status) ? `
+      <div class="item-ft">
+        <button class="btn btn-sm btn-primary" data-acc="${a.id}">受理并撤销</button>
+        <button class="btn btn-sm btn-danger" data-rej="${a.id}">驳回申诉</button>
+        ${a.dispute_id ? `<a class="btn btn-sm" href="javascript:void(0)" data-dp="${a.dispute_id}">查看纠纷</a>` : ""}
+      </div>` : ""}
+    </div>`).join("");
+
+  document.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => decideAppeal(b.dataset.acc, true));
+  document.querySelectorAll("[data-rej]").forEach(b => b.onclick = () => decideAppeal(b.dataset.rej, false));
+  document.querySelectorAll("[data-dp]").forEach(b => b.onclick = () => {
+    switchTab("arb"); openDispute(Number(b.dataset.dp));
+  });
+}
+
+async function decideAppeal(id, accept) {
+  const t = prompt(accept ? "复核意见（将写入处罚单的撤销理由）" : "驳回理由",
+                   accept ? "新证据成立，原裁决适用条款有误，撤销处罚" : "未提供可复核的新事实，维持原裁决");
+  if (t === null) return;
+  if (!t.trim()) { toast("请填写复核意见", "err"); return; }
+  try {
+    await api(`/api/gov/appeals/${id}/decide`, {
+      method: "POST", body: { accept, result: t.trim() }
+    });
+    toast(accept ? "申诉成立，处罚已撤销" : "申诉已驳回", "ok");
+    loadAppeals(); loadPenalties(); loadBoard();
+  } catch (e) {}
+}
+
+/* ---------------- 处罚单 ---------------- */
+async function loadPenalties() {
+  let d;
+  try { d = await api("/api/gov/penalties"); } catch (e) { return; }
+  const rows = d.items.filter(p => p.ptype !== "record" || p.status === "active");
+  if (!rows.length) {
+    $("#penList").innerHTML = `<div class="empty"><div>暂无处罚记录</div></div>`;
+    return;
+  }
+  // 六列塞进半屏宽会把店名和类型全挤成竖排，所以合并「状态 + 操作」，
+  // 依据只给条款号、全称放 title。表格信息密度不是靠堆列堆出来的。
+  $("#penList").innerHTML = `<table class="table pen-table">
+    <thead><tr><th style="width:22%">店铺</th><th style="width:26%">类型</th>
+      <th style="width:9%">扣分</th><th style="width:20%">依据</th>
+      <th style="width:23%">状态</th></tr></thead>
+    <tbody>${rows.map(p => `<tr>
+      <td>${esc(p.shop_name)}</td>
+      <td>${esc(p.type_label)}${p.node ? `<div class="small muted">节点 ${esc(p.node)}</div>` : ""}
+        ${p.auto ? "" : '<div class="small muted">人工</div>'}</td>
+      <td class="mono" style="white-space:nowrap">${p.points || "—"}</td>
+      <td class="small" title="${esc(p.basis || p.clause_no || "")}"
+          style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${esc(p.clause_no || "—")}</td>
+      <td style="white-space:nowrap">
+        ${penBadge(p.status)}
+        ${p.status === "active" && p.ptype !== "record"
+          ? `<button class="btn btn-sm btn-ghost" style="margin-left:6px"
+               data-rv="${p.id}">撤销</button>` : ""}</td>
+    </tr>`).join("")}</tbody></table>`;
+
+  document.querySelectorAll("[data-rv]").forEach(b => b.onclick = async () => {
+    const ok = await confirmBox("撤销处罚", "撤销后扣分立即回滚，店铺状态会重新计算。", "撤销", true);
+    if (!ok) return;
+    try {
+      await api(`/api/gov/penalties/${b.dataset.rv}/revoke`,
+        { method: "POST", body: { reason: "平台主动撤销" } });
+      toast("已撤销", "ok"); loadPenalties(); loadBoard();
+    } catch (e) {}
+  });
+}
+
+/* ---------------- 店铺 ---------------- */
+async function loadShops() {
+  let d;
+  try { d = await api("/api/gov/shops"); } catch (e) { return; }
+  $("#shopTable").innerHTML = `<table class="table">
+    <thead><tr><th>店铺</th><th>平台 / 类目</th><th>信用分</th><th>等级</th>
+      <th>累计扣分</th><th>纠纷（判商家责）</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+    <tbody>${d.items.map(s => `<tr>
+      <td><b>${esc(s.name)}</b>${s.self ? ' <span class="small muted">本店</span>' : ""}</td>
+      <td class="small">${esc(s.platform)}<span class="muted"> · ${esc(s.category || "—")}</span></td>
+      <td class="mono" style="font-weight:650">${s.credit_score}</td>
+      <td>${esc(s.level)}</td>
+      <td class="mono">${s.points_year}</td>
+      <td class="small">${s.dispute_lost} / ${s.dispute_count}</td>
+      <td><span class="badge ${s.status === "normal" ? "L1" : s.status === "closed" ? "L3" : "L2"}">
+        ${esc(s.status_label)}</span>
+        ${s.suspend_until ? `<div class="small muted">至 ${esc(s.suspend_until.slice(0, 10))}</div>` : ""}</td>
+      <td style="text-align:right">
+        <button class="btn btn-sm btn-ghost" data-ps="${s.id}" data-pn="${esc(s.name)}">处罚</button>
+      </td>
+    </tr>`).join("")}</tbody></table>`;
+
+  document.querySelectorAll("[data-ps]").forEach(b => b.onclick = () => penalize(b.dataset.ps, b.dataset.pn));
+}
+
+async function penalize(shopId, shopName) {
+  const opts = ["warning", "marketing_ban", "downgrade", "publish_ban", "suspend", "close"];
+  const t = prompt(`对「${shopName}」执行处罚，请输入类型代码：\n`
+    + opts.map(k => `${k} = ${META.penalty_types[k]}`).join("\n")
+    + `\n\n（suspend 默认 7 天）`, "suspend");
+  if (t === null) return;
+  const ptype = t.trim();
+  if (!opts.includes(ptype)) { toast("类型非法", "err"); return; }
+  const reason = prompt("处罚理由（会记入审计日志）", "经核查存在违规行为，依规则处理");
+  if (reason === null || !reason.trim()) { toast("必须填写理由", "err"); return; }
+  try {
+    await api("/api/gov/penalties", {
+      method: "POST",
+      body: { shop_id: Number(shopId), ptype, days: ptype === "suspend" ? 7 : null, reason: reason.trim() }
+    });
+    toast("处罚已生效", "ok");
+    loadShops(); loadBoard();
+  } catch (e) {}
+}
+
+/* ---------------- 启动 ---------------- */
+async function reloadAll() {
+  await loadBoard(); await loadDisputes();
+  if ($("#pane-pen").classList.contains("active")) { loadAppeals(); loadPenalties(); }
+  if ($("#pane-shop").classList.contains("active")) loadShops();
+}
+
+(async function () {
+  try { ME = await initShell(); } catch (e) { return; }
+  META = await api("/api/gov/meta");
+  $("#thrPill").innerHTML = `自动裁决线 <b>${Math.round(META.threshold * 100)}%</b>`;
+  $("#nodeTable").innerHTML = `<table class="table">
+    <thead><tr><th>累计扣分</th><th>节点处罚</th><th>规则依据</th></tr></thead>
+    <tbody>${META.nodes.slice().reverse().map(n => `<tr>
+      <td class="mono">${n.points} 分</td><td>${esc(n.label)}</td>
+      <td class="small muted">${esc(n.why)}</td></tr>`).join("")}</tbody></table>`;
+  await loadBoard();
+  await loadDisputes();
+})();
+</script>
+</body>
+</html>

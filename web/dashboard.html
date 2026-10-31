@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>经营看板 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  .dash { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .kpi-card { position: relative; overflow: hidden; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px 15px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: box-shadow .18s, transform .18s; }
+  .kpi-card:hover { box-shadow: 0 8px 24px rgba(15,23,42,.10); transform: translateY(-1px); }
+  .kpi-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent, #2b5c9b); }
+  .kpi-head { display: flex; align-items: center; gap: 8px; }
+  .kpi-ico { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
+    background: var(--accent-weak, rgba(43,92,155,.12)); color: var(--accent, #2b5c9b);
+    font-size: 11px; font-weight: 700; }
+  .kpi-card .k { font-size: 12.5px; color: var(--muted); }
+  .kpi-card .v { font-size: 26px; font-weight: 700; margin-top: 8px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .kpi-card .s { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  .panel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .panel-head h3 { font-size: 14px; }
+  .panel-head .sub { font-size: 12px; color: var(--muted); }
+  .panel-head .spacer { flex: 1; }
+  .chart-wrap { position: relative; }
+  .chart-legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .two-col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; align-items: start; }
+  .risk-line { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .risk-line:last-child { border-bottom: none; }
+  .risk-line .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .empty-hint { padding: 30px; text-align: center; color: var(--muted); font-size: 13px; }
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">贸</div>
+      <div><div class="brand-txt">丰贸电商平台</div><div class="brand-sub">经营看板</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item active" href="/dashboard" data-nav="/dashboard"><span class="ico">▦</span>经营看板</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>知识库</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2>经营看板</h2>
+      <span class="pill" id="dashShop">—</span>
+      <div class="spacer"></div>
+      <span class="pill" id="dashUpdated">—</span>
+    </div>
+    <div class="content" style="padding:0">
+      <div class="dash" id="dash">
+        <div class="empty-hint">加载中…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+let D = null;
+
+(async function () {
+  await initShell();
+  try {
+    D = await api("/api/stats/merchant");
+  } catch (e) {
+    $("#dash").innerHTML = `<div class="empty-hint">仅商家账号可查看经营看板</div>`;
+    return;
+  }
+  render();
+})();
+
+const money = v => {
+  v = Number(v || 0);
+  return v >= 10000 ? "¥" + (v / 10000).toFixed(1) + " 万"
+                    : "¥" + v.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+};
+
+function render() {
+  const b = D;
+  $("#dashShop").textContent = b.shop || "";
+  $("#dashUpdated").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+
+  const kpis = [
+    ["本周销售额", money(b.week.amount), `${b.week.orders} 单`, "#2b5c9b", "周"],
+    ["本月销售额", money(b.month.amount), `${b.month.orders} 单`, "#10b981", "月"],
+    ["本年销售额", money(b.year.amount), `${b.year.orders} 单`, "#8b5cf6", "年"],
+    ["客单价", money(b.month.amount / Math.max(b.month.orders, 1)), "按本月计", "#f59e0b", "¥"],
+  ];
+  const trend = b.trend || [];
+  const maxAmt = Math.max(1, ...trend.map(t => t.amount));
+
+  $("#dash").innerHTML = `
+    <div class="kpi-row">
+      ${kpis.map(([k, v, s, color, ico]) => `<div class="kpi-card" style="--accent:${color}">
+        <div class="kpi-head"><span class="kpi-ico">${ico}</span><span class="k">${esc(k)}</span></div>
+        <div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join("")}
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>近 14 日销售额</h3>
+        <span class="sub">横轴＝日期，纵轴＝当天成交金额（元）</span>
+        <div class="spacer"></div>
+        <span class="sub">峰值 ${money(maxAmt)}</span>
+      </div>
+      <div class="chart-wrap">${lineChart(trend, maxAmt)}</div>
+      <div class="chart-legend">
+        <span><i style="background:#2b5c9b"></i>每日销售额</span>
+        <span><i style="background:rgba(43,92,155,.18)"></i>趋势区域</span>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-head"><h3>订单与售后</h3></div>
+        <div class="risk-line"><span>本周成交</span><span class="n">${b.week.orders} 单</span></div>
+        <div class="risk-line"><span>本月成交</span><span class="n">${b.month.orders} 单</span></div>
+        <div class="risk-line"><span>本年成交</span><span class="n">${b.year.orders} 单</span></div>
+        <div class="risk-line"><span>投诉纠纷</span><span class="n">${b.disputes.total} 单（处理中 ${b.disputes.open}）</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>风险提示</h3></div>
+        <div class="risk-line"><span>虚假发货</span><span class="n" style="color:${b.risk.fake_ship ? "var(--danger)" : "var(--ok)"}">${b.risk.fake_ship} 单</span></div>
+        <div class="risk-line"><span>处理中纠纷</span><span class="n" style="color:${b.disputes.open ? "var(--warn)" : "var(--ok)"}">${b.disputes.open} 单</span></div>
+        <div class="empty-hint" style="padding:14px 0 0;text-align:left;font-size:12px">
+          ${b.risk.fake_ship ? "存在揽收超 24 小时的订单，建议尽快核查物流。" : "暂无虚假发货风险。"}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* 带坐标轴/网格/数值标注的折线图（SVG，零依赖） */
+function lineChart(trend, maxAmt) {
+  const W = 760, H = 280, L = 52, R = 16, T = 16, B = 34;
+  const n = trend.length;
+  if (!n) return `<div class="empty-hint">暂无销售数据</div>`;
+  const plotW = W - L - R, plotH = H - T - B;
+  const x = i => L + (n === 1 ? plotW / 2 : plotW * i / (n - 1));
+  const y = v => T + plotH * (1 - v / maxAmt);
+  // 网格 + Y 轴刻度
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+  const grid = yTicks.map(g => {
+    const yy = T + plotH * (1 - g);
+    return `<line x1="${L}" y1="${yy.toFixed(1)}" x2="${W - R}" y2="${yy.toFixed(1)}"
+                  stroke="var(--border)" stroke-width="1" ${g === 0 ? "" : 'stroke-dasharray="3 4"'}/>
+            <text x="${L - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${money(maxAmt * g)}</text>`;
+  }).join("");
+  // X 轴日期
+  const xLabels = trend.map((t, i) =>
+    `<text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(t.date)}</text>`).join("");
+  // 区域 + 折线 + 数据点
+  const pts = trend.map((t, i) => `${x(i).toFixed(1)},${y(t.amount).toFixed(1)}`);
+  const area = `M ${x(0).toFixed(1)},${y(0).toFixed(1)} L ${pts.join(" L ")} L ${x(n - 1).toFixed(1)},${y(0).toFixed(1)} Z`;
+  const dots = trend.map((t, i) =>
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(t.amount).toFixed(1)}" r="3.4" fill="#2b5c9b" stroke="var(--surface)" stroke-width="1.6"><title>${esc(t.date)}　${money(t.amount)}</title></circle>`).join("");
+  // 峰值标注
+  const peak = trend.reduce((a, b) => (b.amount > a.amount ? b : a), trend[0]);
+  const pi = trend.indexOf(peak);
+  const peakLabel = `<text x="${x(pi).toFixed(1)}" y="${(y(peak.amount) - 12).toFixed(1)}" text-anchor="middle"
+        font-size="10.5" fill="#2b5c9b" font-weight="600">${money(peak.amount)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+    <defs>
+      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2b5c9b" stop-opacity=".26"/>
+        <stop offset="70%" stop-color="#2b5c9b" stop-opacity=".05"/>
+        <stop offset="100%" stop-color="#2b5c9b" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${grid}${xLabels}
+    <path d="${area}" fill="url(#areaGrad)"/>
+    <polyline points="${pts.join(" ")}" fill="none" stroke="#2b5c9b" stroke-width="2.4"
+              stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${peakLabel}
+    <line x1="${L}" y1="${T + plotH}" x2="${W - R}" y2="${T + plotH}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${T + plotH}" stroke="var(--border)" stroke-width="1"/>
+  </svg>`;
+}
+</script>
+</body>
+</html>

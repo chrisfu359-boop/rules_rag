@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · 丰贸电商平台</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  body { display: grid; grid-template-columns: 1.05fr .95fr; height: 100vh; overflow: hidden; }
+
+  /* ---- 左侧品牌区 ---- */
+  .brandside {
+    position: relative; overflow: hidden;
+    background: linear-gradient(150deg, #0b1220 0%, #14204a 52%, #1e2a6b 100%);
+    color: #e8edf8; padding: 54px 56px; display: flex; flex-direction: column;
+  }
+  .brandside::before {
+    content: ""; position: absolute; width: 620px; height: 620px; border-radius: 50%;
+    right: -240px; top: -200px;
+    background: radial-gradient(circle, rgba(79,140,255,.30), transparent 68%);
+  }
+  .brandside::after {
+    content: ""; position: absolute; width: 460px; height: 460px; border-radius: 50%;
+    left: -190px; bottom: -220px;
+    background: radial-gradient(circle, rgba(124,58,237,.28), transparent 70%);
+  }
+  .brandside > * { position: relative; z-index: 1; }
+  .logo { display: flex; align-items: center; gap: 11px; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #4f8cff, #7c3aed); font-weight: 700; font-size: 17px;
+  }
+  .logo-txt { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .headline { margin-top: 62px; font-size: 33px; line-height: 1.32; font-weight: 650; letter-spacing: -.02em; }
+  .headline em { font-style: normal; color: #7ea9ff; }
+  .sub { margin-top: 16px; font-size: 14.5px; line-height: 1.85; color: #a9b8d6; max-width: 430px; }
+  .points { margin-top: 40px; display: flex; flex-direction: column; gap: 18px; }
+  .point { display: flex; gap: 12px; align-items: flex-start; }
+  .point-ico {
+    width: 26px; height: 26px; border-radius: 7px; flex: none; display: grid; place-items: center;
+    background: rgba(126,169,255,.14); border: 1px solid rgba(126,169,255,.24);
+    font-size: 12px; color: #9dc0ff;
+  }
+  .point-t { font-size: 13.5px; font-weight: 600; color: #dce6f8; }
+  .point-d { font-size: 12.5px; color: #8fa0c0; margin-top: 2px; line-height: 1.65; }
+  .foot-note { margin-top: auto; font-size: 11.5px; color: #6b7c9c; }
+
+  /* ---- 右侧表单区 ---- */
+  .formside {
+    display: grid; place-items: center; padding: 40px 32px;
+    background: var(--bg); overflow-y: auto;
+  }
+  .box { width: 100%; max-width: 384px; }
+  .box h1 { font-size: 23px; letter-spacing: -.02em; }
+  .box .lead { margin-top: 6px; font-size: 13.5px; color: var(--text-2); }
+  .tabs {
+    display: flex; gap: 4px; margin: 26px 0 22px; padding: 4px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+  }
+  .tab {
+    flex: 1; height: 34px; border: none; border-radius: 6px; cursor: pointer;
+    background: transparent; color: var(--text-2); font-size: 13.5px; font-weight: 500;
+    transition: .15s;
+  }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); font-weight: 600; }
+  .form-pane { animation: fadeUp .22s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .legal { margin-top: 18px; font-size: 11.5px; color: var(--muted); text-align: center; line-height: 1.7; }
+
+  /* 窄一点的窗口不直接砍掉左栏，压紧密度继续保留两栏；
+     直接切单列会让页面显得空荡，也丢失品牌信息。 */
+  @media (max-width: 1080px) {
+    .brandside { padding: 40px 34px; }
+    .headline { margin-top: 42px; font-size: 27px; }
+    .sub { font-size: 13px; margin-top: 12px; }
+    .points { margin-top: 28px; gap: 13px; }
+    .point-d { display: none; }
+    .formside { padding: 32px 26px; }
+  }
+  @media (max-width: 820px) {
+    body { grid-template-columns: 1fr; }
+    .brandside { display: none; }
+  }
+
+  /* ---- 左栏视觉主体：产品预览卡 + 数据条 ---- */
+  .brandside {
+    background:
+      radial-gradient(circle at 82% -12%, rgba(79,140,255,.34), transparent 46%),
+      radial-gradient(circle at -8% 108%, rgba(124,58,237,.30), transparent 48%),
+      linear-gradient(150deg, #0a1020 0%, #121d42 55%, #1b2766 100%);
+  }
+  .brandside::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+    background-image:
+      linear-gradient(rgba(140,170,255,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140,170,255,.055) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse at 35% 20%, #000 30%, transparent 78%);
+            mask-image: radial-gradient(ellipse at 35% 20%, #000 30%, transparent 78%);
+  }
+  .logo-badge {
+    margin-left: 2px; font-size: 10.5px; padding: 2px 8px; border-radius: 999px;
+    color: #9dc0ff; border: 1px solid rgba(126,169,255,.32); background: rgba(126,169,255,.10);
+  }
+  .headline { margin-top: 52px; font-size: 35px; line-height: 1.3; }
+  /* 抽象商品视觉（购物袋 + 漂浮商品块 + 客服气泡） */
+  .hero-art { margin-top: 38px; display: grid; place-items: center; }
+  .hero-art svg { width: min(320px, 78%); height: auto;
+    filter: drop-shadow(0 22px 48px rgba(79,140,255,.30)); }
+</style>
+</head>
+<body>
+
+<aside class="brandside">
+  <div class="logo">
+    <div class="logo-mark">贸</div>
+    <div class="logo-txt">丰贸电商平台</div>
+    <span class="logo-badge">购物客服</span>
+  </div>
+
+  <div class="headline">让每一次购物咨询<br>都<em>被认真回应</em></div>
+  <p class="sub">
+    商品咨询、物流进度、售后处理与纠纷调解——买家的每个问题都有人接住，
+    商家、平台与系统在同一处协作，把事情一次办完。
+  </p>
+
+  <div class="hero-art">
+    <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="feBag" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5b8dff"/><stop offset="1" stop-color="#8b5cf6"/>
+        </linearGradient>
+        <linearGradient id="feBox" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#7ea9ff" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#c4b5fd" stop-opacity=".32"/>
+        </linearGradient>
+      </defs>
+      <circle cx="160" cy="162" r="128" fill="none" stroke="rgba(126,169,255,.12)" stroke-width="1"/>
+      <circle cx="160" cy="162" r="98" fill="rgba(79,140,255,.07)"/>
+      <!-- 抽象商品块 -->
+      <rect x="48" y="104" width="44" height="44" rx="12" fill="url(#feBox)" transform="rotate(-8 70 126)"/>
+      <rect x="238" y="128" width="34" height="34" rx="9" fill="url(#feBox)" opacity=".85" transform="rotate(10 255 145)"/>
+      <circle cx="252" cy="214" r="15" fill="rgba(168,85,247,.28)"/>
+      <rect x="58" y="222" width="26" height="26" rx="7" fill="rgba(126,169,255,.22)" transform="rotate(12 71 235)"/>
+      <!-- 购物袋 -->
+      <rect x="112" y="146" width="100" height="120" rx="16" fill="url(#feBag)"/>
+      <path d="M136 146 v-20 a26 26 0 0 1 52 0 v20" fill="none" stroke="#e9f0ff" stroke-width="6" stroke-linecap="round"/>
+      <!-- 客服气泡 -->
+      <rect x="182" y="92" width="80" height="48" rx="15" fill="#fff" opacity=".93"/>
+      <circle cx="204" cy="116" r="4.2" fill="#8b5cf6"/>
+      <circle cx="222" cy="116" r="4.2" fill="#8b5cf6" opacity=".62"/>
+      <circle cx="240" cy="116" r="4.2" fill="#8b5cf6" opacity=".32"/>
+    </svg>
+  </div>
+
+  <div class="foot-note">丰贸电商 · 购物咨询与售后服务平台</div>
+</aside>
+
+<main class="formside">
+  <div class="box">
+    <h1 id="paneTitle">登录</h1>
+    <p class="lead" id="paneLead">使用你的账号进入工作台</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="login">登录</button>
+      <button class="tab" data-tab="register">注册</button>
+    </div>
+
+    <!-- 登录 -->
+    <form class="form-pane" id="formLogin" autocomplete="on">
+      <div class="field">
+        <label for="lu">用户名</label>
+        <input class="input" id="lu" name="username" autocomplete="username" placeholder="请输入用户名" required>
+      </div>
+      <div class="field">
+        <label for="lp">密码</label>
+        <input class="input" id="lp" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+      </div>
+      <div id="loginErr" class="err-text hidden"></div>
+      <button class="btn btn-primary btn-block btn-lg mt-8" id="btnLogin" type="submit">登 录</button>
+    </form>
+
+    <!-- 注册 -->
+    <form class="form-pane hidden" id="formRegister" autocomplete="on">
+      <div class="grid-2">
+        <div class="field">
+          <label for="ru">用户名</label>
+          <input class="input" id="ru" name="username" autocomplete="username" placeholder="字母开头 3-32 位">
+        </div>
+        <div class="field">
+          <label for="rn">昵称</label>
+          <input class="input" id="rn" name="display_name" placeholder="显示名称">
+        </div>
+      </div>
+      <div class="field">
+        <label for="re">邮箱</label>
+        <input class="input" id="re" name="email" type="email" autocomplete="email" placeholder="用于找回账号">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="rp">密码</label>
+          <input class="input" id="rp" name="password" type="password" autocomplete="new-password" placeholder="8 位以上，含字母数字">
+        </div>
+        <div class="field">
+          <label for="rs">店铺名称</label>
+          <input class="input" id="rs" name="shop_name" placeholder="选填">
+        </div>
+      </div>
+      <div id="regErr" class="err-text hidden"></div>
+      <button class="btn btn-primary btn-block btn-lg mt-8" id="btnReg" type="submit">创建账号</button>
+      <p class="hint mt-8">注册后默认角色为「商家」，可管理自己店铺的商品咨询与售后。</p>
+    </form>
+
+    <p class="legal">登录即表示同意《用户服务协议》与《隐私政策》<br>丰贸电商 · 购物咨询与售后服务平台</p>
+  </div>
+</main>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+initTheme();
+
+// next 只接受站内路径，且不能指回登录页——否则登录成功后又被踢回登录页
+function safeNext(v) {
+  const s = String(v || "");
+  if (!s.startsWith("/") || s.startsWith("//")) return "/app";
+  if (s === "/login" || s.startsWith("/login?") || s.startsWith("/login/")) return "/app";
+  return s;
+}
+const next = safeNext(new URLSearchParams(location.search).get("next"));
+let tab = "login";
+
+function switchTab(t) {
+  tab = t;
+  $$(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
+  $("#formLogin").classList.toggle("hidden", t !== "login");
+  $("#formRegister").classList.toggle("hidden", t !== "register");
+  $("#paneTitle").textContent = t === "login" ? "登录" : "注册";
+  $("#paneLead").textContent = t === "login" ? "使用你的账号进入工作台" : "创建账号后即可开始提问";
+  $("#loginErr").classList.add("hidden");
+  $("#regErr").classList.add("hidden");
+}
+
+$$(".tab").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+function showErr(id, msg) {
+  const el = $(id);
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+$("#formLogin").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnLogin");
+  $("#loginErr").classList.add("hidden");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> 登录中…`;
+  try {
+    await api("/api/auth/login", {
+      method: "POST",
+      body: { username: $("#lu").value.trim(), password: $("#lp").value },
+      noAuthRedirect: true,
+    });
+    location.replace(next);
+  } catch (err) {
+    showErr("#loginErr", err.message);
+    btn.disabled = false;
+    btn.textContent = "登 录";
+  }
+});
+
+$("#formRegister").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnReg");
+  $("#regErr").classList.add("hidden");
+
+  const username = $("#ru").value.trim();
+  const password = $("#rp").value;
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{2,31}$/.test(username)) return showErr("#regErr", "用户名需以字母开头，3-32 位字母/数字/下划线");
+  if (password.length < 8) return showErr("#regErr", "密码至少 8 位");
+  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return showErr("#regErr", "密码需同时包含字母和数字");
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> 创建中…`;
+  try {
+    await api("/api/auth/register", {
+      method: "POST",
+      body: {
+        username, password,
+        email: $("#re").value.trim(),
+        display_name: $("#rn").value.trim() || username,
+        shop_name: $("#rs").value.trim() || null,
+      },
+    });
+    location.href = "/app";
+  } catch (err) {
+    showErr("#regErr", err.message);
+    btn.disabled = false;
+    btn.textContent = "创建账号";
+  }
+});
+
+// 已登录直接进工作台。注意必须带 noAuthRedirect：
+// 未登录时 /api/auth/me 返回 401，若让它跳转就会「跳登录页→再探测→再跳」无限循环。
+api("/api/auth/me", { quiet: true, noAuthRedirect: true })
+  .then(() => { location.replace(next); })
+  .catch(() => {});
+</script>
+</body>
+</html>

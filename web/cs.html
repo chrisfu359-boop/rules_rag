@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>咨询窗口 · 智能客服</title>
+<link rel="stylesheet" href="/assets/style.css?v=20261031">
+<style>
+  body { background: var(--bg); }
+  .wrap {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 26px; padding: 0; flex-wrap: wrap;
+  }
+
+  /* ---------- 手机壳 ---------- */
+  .phone {
+    width: 392px; height: 720px; max-height: calc(100vh - 52px);
+    background: var(--surface); border-radius: 26px; overflow: hidden;
+    box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .ph-head {
+    flex: none; padding: 13px 16px; display: flex; align-items: center; gap: 10px;
+    background: var(--sidebar); color: #fff;
+  }
+  .ph-avatar {
+    width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #4f8cff, #7c3aed); font-weight: 700; font-size: 14px;
+  }
+  .ph-title { font-size: 14px; font-weight: 600; }
+  .ph-sub { font-size: 11px; color: rgba(255,255,255,.55); display: flex; align-items: center; gap: 5px; }
+  .live { width: 6px; height: 6px; border-radius: 50%; background: #34d399; }
+  .live.off { background: #94a3b8; }
+
+  .ph-body { flex: 1; overflow-y: auto; padding: 16px 14px; background: var(--bg); }
+  .ph-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 10px; background: var(--surface); }
+
+  .row-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 8px; }
+  .qchip {
+    flex: none; font-size: 12px; padding: 5px 10px; border-radius: 14px; cursor: pointer;
+    background: var(--primary-weak); color: var(--primary); border: 1px solid transparent;
+    white-space: nowrap; user-select: none;
+  }
+  .qchip:hover { border-color: var(--primary); }
+  .qchip.hot { background: var(--warn-weak); color: var(--warn); }
+  /* 带单核查是一个入口（会弹卡片选案件），不是一句话，所以画成虚线框 */
+  .qchip.pick { background: transparent; color: var(--text-2); border: 1px dashed var(--border-2, #cbd5e1); }
+
+  .input-row { display: flex; gap: 7px; align-items: flex-end; }
+  .ph-input {
+    flex: 1; min-height: 38px; max-height: 90px; border-radius: 9px; padding: 9px 11px;
+    border: 1px solid var(--border-strong); font-size: 13px; font-family: inherit;
+    resize: none; outline: none; line-height: 1.45; background: var(--surface); color: var(--text);
+  }
+  .ph-input:focus { border-color: var(--primary); }
+
+  /* ---------- 消息 ---------- */
+  .b { display: flex; gap: 7px; margin-bottom: 13px; }
+  .b.r { flex-direction: row-reverse; }
+  .b-av { width: 26px; height: 26px; border-radius: 8px; flex: none; display: grid;
+          place-items: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .b-av.me { background: #f59e0b; }
+  .b-av.bot { background: var(--primary); }
+  .b-av.human { background: var(--ok); }
+  .b-body { max-width: 76%; }
+  .b-txt {
+    padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.6;
+    background: var(--surface); border: 1px solid var(--border); white-space: pre-wrap;
+    word-break: break-word; color: var(--text);
+  }
+  .b.r .b-txt { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .b-txt.from-human { background: var(--ok-weak); border-color: rgba(4,120,87,.25); }
+  .b-note { font-size: 10.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; }
+  .b.r .b-note { justify-content: flex-end; }
+  .tag { font-size: 10px; padding: 0 5px; border-radius: 3px; font-weight: 600; }
+  .tag.faq { background: var(--ok-weak); color: var(--ok); }
+  .tag.redis { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+  .tag.llm { background: var(--purple-weak); color: var(--purple); }
+  .tag.rule, .tag.template { background: var(--warn-weak); color: var(--warn); }
+  .tag.human { background: var(--ok-weak); color: var(--ok); }
+  .sysline { text-align: center; font-size: 11px; color: var(--muted); margin: 10px 0; }
+
+  .typing { display: flex; gap: 3px; padding: 10px 13px; }
+  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+              animation: bl 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .15s; }
+  .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes bl { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
+
+  /* ---------- 右侧链路面板 ---------- */
+  .trace {
+    width: 372px; max-height: calc(100vh - 52px); display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .tr-head { padding: 14px 16px; border-bottom: 1px solid var(--border); flex: none; }
+  .tr-head h3 { font-size: 14px; }
+  .tr-head p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .tr-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+
+  .step { display: flex; gap: 10px; padding: 9px 0; position: relative; }
+  .step:not(:last-child)::before {
+    content: ""; position: absolute; left: 11px; top: 30px; bottom: -4px; width: 1px;
+    background: var(--border);
+  }
+  .step-no {
+    width: 23px; height: 23px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--muted);
+    border: 1px solid var(--border); z-index: 1;
+  }
+  .step.hit .step-no { background: var(--ok); color: #fff; border-color: var(--ok); }
+  .step.miss .step-no { background: var(--surface-2); color: var(--muted); }
+  .step.skip .step-no { opacity: .45; }
+  .step-main { flex: 1; min-width: 0; }
+  .step-title { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .step-title .res { font-size: 10.5px; padding: 0 6px; border-radius: 3px; font-weight: 600; }
+  .res.hit { background: var(--ok-weak); color: var(--ok); }
+  .res.miss { background: var(--surface-2); color: var(--muted); }
+  .res.skip { background: transparent; color: var(--muted); font-weight: 500; }
+  .step-detail { font-size: 11.5px; color: var(--text-2); margin-top: 2px; word-break: break-all; }
+  .step-detail code { background: var(--surface-2); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+
+  .tr-empty { text-align: center; color: var(--muted); font-size: 12.5px; padding: 40px 10px; }
+  .legend2 { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+  .legend2 span { display: flex; align-items: center; gap: 4px; }
+  .legend2 i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+
+  /* ---------- 板块徽标 ---------- */
+  .scope-tag {
+    font-size: 10px; padding: 0 6px; border-radius: 4px; font-weight: 600;
+    background: rgba(255,255,255,.14); color: rgba(255,255,255,.86);
+    border: 1px solid rgba(255,255,255,.18); white-space: nowrap;
+  }
+
+  /* ---------- 三方接入（仅治理板块） ---------- */
+  .govbox { flex: none; border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  .govbox h4 { font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+  .govbox .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .gov-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+  .gov-cell {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 8px 10px;
+  }
+  .gov-cell .k { font-size: 11px; color: var(--muted); }
+  .gov-cell .v { font-size: 18px; font-weight: 700; margin-top: 1px; }
+  .gov-cell .v.warn { color: var(--warn); }
+  .gov-links { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+  .gov-links a {
+    font-size: 11.5px; padding: 4px 9px; border-radius: 6px; text-decoration: none;
+    background: var(--primary-weak); color: var(--primary); border: 1px solid transparent;
+  }
+  .gov-links a:hover { border-color: var(--primary); }
+
+  @media (max-width: 860px) {
+    .trace { width: 100%; max-height: 420px; }
+    .phone { height: 640px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">规</div>
+      <div><div class="brand-txt">丰贸电商平台</div><div class="brand-sub" id="sideSub">咨询窗口</div></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="/app" data-nav="/app"><span class="ico">◈</span>工作台</a>
+      <a class="nav-item" href="/dashboard" data-nav="/dashboard"><span class="ico">▤</span>经营看板</a>
+
+      <a class="nav-item" href="/rules" data-nav="/rules"><span class="ico">▤</span>规则库</a>
+      <a class="nav-item" href="/service" data-nav="/service"><span class="ico">☏</span>客服工作台</a>
+      <a class="nav-item active" href="/cs" data-nav="/cs"><span class="ico">◔</span>咨询窗口</a>
+      <a class="nav-item" href="/orders" data-nav="/orders"><span class="ico">▦</span>我的订单</a>
+
+      <a class="nav-item" href="/dispute" data-nav="/dispute"><span class="ico">⚖</span>纠纷中心</a>
+      <a class="nav-item" href="/platform" data-nav="/platform"><span class="ico">⛨</span>平台监管</a>
+      <a class="nav-item" href="/settings" data-nav="/settings"><span class="ico">⚙</span>设置</a>
+      <a class="nav-item" href="/admin" data-nav="/admin"><span class="ico">⛨</span>系统管理</a>
+    </nav>
+    <div class="sidebar-foot"><div class="user-chip" id="userChip"></div></div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h2>咨询窗口</h2><div class="spacer"></div>
+      <span class="pill" id="pillScope">店铺客服</span>
+    </div>
+    <div class="content">
+      <div class="wrap">
+  <!-- 手机 -->
+  <div class="phone">
+    <div class="ph-head">
+      <div class="ph-avatar" id="phAvatar">客</div>
+      <div style="flex:1;min-width:0">
+        <div class="ph-title" id="phShop">咨询窗口</div>
+        <div class="ph-sub">
+          <span class="scope-tag" id="phScope">店铺客服</span>
+          <span class="live" id="phLive"></span><span id="phState">机器人 · 秒回</span>
+        </div>
+      </div>
+      <div id="phActs" style="display:flex;gap:6px;flex:none"></div>
+    </div>
+    <div class="ph-body" id="phBody">
+      <div class="sysline" id="phIntro">正在接入…</div>
+    </div>
+    <div class="ph-foot">
+      <div class="row-chips" id="chips"></div>
+      <div class="input-row">
+        <textarea class="ph-input" id="phInput" rows="1" placeholder="说吧，客服在听…"></textarea>
+        <button class="btn btn-primary" id="phSend" style="flex:none">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 链路追踪 -->
+  <div class="trace">
+    <div class="govbox" id="govBox" style="display:none"></div>
+    <div class="tr-head">
+      <h3>路由链路追踪</h3>
+      <p id="trSub">每句话都会走这条漏斗，命中即止</p>
+    </div>
+    <div class="tr-body" id="trBody">
+      <div class="tr-empty">
+        发一条消息，这里会显示它经过了哪几层、每一层的判断依据。<br><br>
+        <span style="font-size:11.5px">① Redis 精确缓存 　② MySQL 知识库 BM25（≥0.88）<br>③ 大模型 　④ 人工兜底</span>
+        <br><br><span style="font-size:11px;opacity:.8">知识域：店铺 / 平台规则 / 治理规范，互不串门</span>
+      </div>
+    </div>
+  </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/api.js?v=20261031"></script>
+<script>
+const SRC_CN = { redis: "缓存", faq: "知识库", llm: "大模型", rule: "规则转人工",
+                 template: "兜底转人工", human: "人工", case: "带单核查" };
+
+/* 板块外观不在这里定义。
+   以前这份 SKIN 写在页面上，服务端只管标题和快捷问题，两边各改各的：
+   治理板块顶部挂着买家的「平台介入」，发一条消息后状态栏又被写回「机器人 · 秒回」。
+   现在头像、徽标、引导语、状态文案、输入框提示、头部动作全部由
+   GET /api/cs/board 的 ui 字段给，页面只负责渲染。 */
+
+let SID = null, polling = null, status = "bot", SIG = "";
+let DISPUTE = null;      // 本会话已提交的纠纷（提交后按钮变成"查看进展"）
+let BOARD = null, ME = null, SHOP_ID = null;
+
+(async function () {
+  initTheme();
+  try { await initShell(); } catch (e) { /* 侧栏失败不阻断咨询 */ }
+  try {
+    // getMe() 返回的是 {user, pref}，之前这里直接当用户对象用，
+    // 结果买家名永远是"买家"、店铺名永远是"我的店铺"。取 user 才是对的。
+    const r = await getMe();
+    ME = r.user || r;
+  } catch (e) { return; }
+
+  // 板块由服务端判定：前端不再自己判断角色，否则两边规则迟早不一致。
+  // ?scope=shop 给商家/运营预览店铺客服用，服务端会校验权限。
+  const qs = new URLSearchParams(location.search);
+  const want = qs.get("scope");
+  let b;
+  try {
+    b = await api("/api/cs/board" + (want ? "?scope=" + encodeURIComponent(want) : ""));
+  } catch (e) { return; }
+  BOARD = b;
+  const S = b.scope;
+  const UI = b.ui || {};
+
+  $("#phAvatar").textContent = UI.avatar || "客";
+  // 徽标写角色，标题写板块：两者相同的话头顶会重复出现两遍"平台规则助手"
+  $("#phScope").textContent = UI.badge || b.role_label;
+  $("#phIntro").textContent = UI.intro || "";
+  $("#phState").textContent = (UI.states || {}).bot || "在线";
+
+  $("#phActs").innerHTML = paintActions(UI.actions || []);
+  if (S === "shop") {
+    SHOP_ID = await prepareShop(qs);
+    if (SHOP_ID === null) return;
+    // 拿到店铺后重新取一次板块配置：快捷问题和知识条数都必须按**这家店**算。
+    // 用平台通用那份渲染出来的 chip，点下去很可能答不上来——因为本店把那条
+    // 话术改成了自己的口径（比如"本店 48 小时发货，大件 3-5 天备货"）。
+    try {
+      b = await api(`/api/cs/board?scope=shop&shop_id=${SHOP_ID}`);
+      BOARD = b;
+    } catch (e) {}
+  } else {
+    $("#phShop").textContent = b.title;
+    $("#phShop").title = b.desc;
+  }
+  // 知识构成写在链路字幕上：店老板改完话术，得能看见"本店专属"这个数变了，
+  // 否则他无从判断自己那句话到底进没进检索。
+  $("#trSub").textContent = S === "shop" && b.stats
+    ? `${UI.trace || ""} · 知识：本店专属 ${b.stats.own} + 平台通用 ${b.stats.global}`
+      + (b.stats.effective && b.stats.effective !== (b.stats.own + b.stats.global)
+         ? ` · 同问法以本店为准，生效 ${b.stats.effective} 条` : ` · 共 ${b.stats.effective} 条`)
+    : (UI.trace || "每句话都会走这条漏斗，命中即止");
+  if (b.gov) renderGov(b.gov);
+
+  // 历史记忆：优先恢复上次会话（把 sid 存在 localStorage），
+  // 否则每次加载都新建会话——这就是"切到别的功能再回来历史全丢"的根因。
+  const sidKey = `rr:cs:sid:${ME.id}:${S}:${S === "shop" ? (SHOP_ID || 0) : 0}`;
+  let m = null;
+  const savedSid = (() => { try { return localStorage.getItem(sidKey); } catch (e) { return null; } })();
+  if (savedSid) {
+    try {
+      const d = await api("/api/cs/sessions/" + savedSid, { quiet: true });
+      if (d && d.session && d.session.status !== "closed") m = d.session;
+    } catch (e) { /* 会话已失效（被清理/关单），走新建 */ }
+  }
+  if (!m) {
+    try {
+      m = await api("/api/cs/sessions", {
+        method: "POST",
+        body: S === "shop" ? { channel: "淘宝", shop_id: SHOP_ID, scope: "shop" }
+                           : { scope: S }
+      });
+    } catch (e) {
+      // 店铺被平台停业/清退时，会话建不起来。这不是"系统坏了"，
+      // 要把原因和出路说清楚，否则买家只会反复刷新。
+      $("#phBody").innerHTML =
+        `<div class="sysline">${esc(e.message || "店铺暂停接待")}</div>` +
+        (S === "shop" && ME.role === "buyer"
+          ? `<div style="padding:0 18px 18px"><a class="btn btn-primary btn-block"
+             href="/dispute?new=1">申请平台介入</a></div>` : "");
+      $("#phInput").disabled = true;
+      $("#phSend").disabled = true;
+      return;
+    }
+  }
+  SID = m.id;
+  try { localStorage.setItem(sidKey, String(SID)); } catch (e) { }
+
+  renderChips(b.chips || []);
+
+  $("#phSend").onclick = send;
+  const esc2 = $("#phEscalate");
+  if (esc2) esc2.onclick = escRequest;
+  $("#phInput").onkeydown = e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+  $("#phInput").oninput = e => {
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 90) + "px";
+  };
+  $("#phInput").placeholder = UI.placeholder || "";
+  await refresh();
+})();
+
+/* 头部动作按钮由 /assets/api.js?v=20261031 里的 paintActions(acts) 渲染（数据驱动，见 v9）。 */
+
+
+/* 店铺客服板块要选店铺。买家选要问哪家店；商家只能预览自己店；
+   运营要选一家店才能"以那家店的身份"走一遍买家流程。 */
+async function prepareShop(qs) {
+  if (ME.role === "merchant") {
+    $("#phShop").textContent = (ME.shop_name || "本店") + " · 在线客服";
+    return ME.shop_id;
+  }
+  let shops = [];
+  try { shops = (await api("/api/gov/meta")).shops || []; } catch (e) {}
+  shops = shops.filter(s => s.status !== "closed");
+  if (!shops.length) {
+    $("#phBody").innerHTML = `<div class="sysline">当前没有在营店铺可咨询</div>`;
+    return null;
+  }
+  const want = Number(qs.get("shop") || 0);
+  const id = shops.some(s => s.id === want) ? want : shops[0].id;
+  $("#phShop").innerHTML = `<select id="phShopSel" style="background:transparent;border:0;
+    color:inherit;font:inherit;outline:none;max-width:190px">
+    ${shops.map(s => `<option value="${s.id}" ${s.id === id ? "selected" : ""}
+      style="color:#111">${esc(s.name)}</option>`).join("")}</select>`;
+  // 换店铺就是换一个客服主体，带着参数重进，避免旧会话串到新店铺
+  $("#phShopSel").onchange = e => {
+    const keep = qs.get("scope");
+    location.href = "/cs?shop=" + e.target.value + (keep ? "&scope=" + keep : "");
+  };
+  return id;
+}
+
+function renderChips(chips) {
+  $("#chips").innerHTML = chips.map(c =>
+    `<div class="qchip ${c.handoff ? "hot" : ""} ${c.kind === "case" ? "pick" : ""}"
+          data-q="${esc(c.q)}" data-kind="${esc(c.kind || "text")}">${esc(c.q)}</div>`)
+    .join("");
+  document.querySelectorAll(".qchip").forEach(c => c.onclick = () => {
+    // "挑一单查条款"不是一句话，是一个入口：先选案件，再由服务端摊事实和条款。
+    // 以前它被当成普通问句发给机器人，必然撞上 case_judge 转人工规则。
+    if (c.dataset.kind === "case") { openCasePicker(); return; }
+    $("#phInput").value = c.dataset.q;
+    send();
+  });
+}
+
+/* 带单核查：选一张真实案件，而不是让运营凭空问"这个案子怎么判"。
+   列表只有平台侧能拿到（/api/cs/cases 对买家、商家 403）。 */
+async function openCasePicker() {
+  let d;
+  try { d = await api("/api/cs/cases", { quiet: true }); } catch (e) { return; }
+  const items = d.items || [];
+  if (!items.length) { toast("当前没有可核查的案件", "warn"); return; }
+  const mask = document.createElement("div");
+  mask.className = "modal-mask";
+  mask.innerHTML = `
+    <div class="modal" style="width:560px;max-width:94vw">
+      <div class="modal-head">挑一单看事实与条款</div>
+      <div class="modal-body" style="max-height:64vh;overflow-y:auto">
+        <div class="hint" style="margin-bottom:10px;line-height:1.7">
+          系统会摊开这张单的订单事实和适用条款原文，<b>不给裁决结论</b>——
+          定性仍然在仲裁台按证据做。</div>
+        ${items.map(x => `
+          <div class="case-item" data-id="${x.id}"
+               style="border:1px solid var(--border);border-radius:9px;padding:9px 11px;
+                      margin-bottom:8px;cursor:pointer">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-weight:600">${esc(x.dispute_no)}</span>
+              <span class="badge ${x.status === "pending_human" ? "L2" : "neutral"}">${esc(x.status_label)}</span>
+              <span class="small muted">${esc(x.type_label)}</span>
+              <div style="flex:1"></div>
+              <span class="small muted">¥${(x.claim_amount || 0).toFixed(2)}</span>
+            </div>
+            <div class="small muted" style="margin-top:3px">
+              ${esc(x.shop_name || "—")} · ${esc(x.order_no || "未关联订单")} · ${esc(x.title)}</div>
+          </div>`).join("")}
+      </div>
+      <div class="modal-foot"><button class="btn" data-no>取消</button></div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.addEventListener("click", e => {
+    if (e.target === mask || e.target.hasAttribute("data-no")) mask.remove();
+  });
+  mask.querySelectorAll(".case-item").forEach(el => el.onclick = async () => {
+    mask.remove();
+    await caseCheck(Number(el.dataset.id));
+  });
+}
+
+async function caseCheck(id) {
+  if (!SID) return;
+  let r;
+  try {
+    r = await api(`/api/cs/sessions/${SID}/case`,
+                  { method: "POST", body: { dispute_id: id } });
+  } catch (e) { return; }
+  renderTrace("挑一单查条款", r);
+  await refresh();
+}
+
+/* 三方接入：运营进咨询窗口，第一眼要知道的不是"知识库多少条"，
+   而是"有多少事卡在谁那里"。四个数字对应买家的提交、商家的答辩、
+   平台的裁决、以及已经生效的处罚。 */
+function renderGov(g) {
+  const box = $("#govBox");
+  box.style.display = "";
+  box.innerHTML = `
+    <h4>三方接入 <span style="font-size:10.5px;font-weight:400;color:var(--muted)">
+      买家 · 商家 · 平台</span></h4>
+    <div class="hint">四个数字是三方各自卡住的位置，不是知识库统计</div>
+    <div class="gov-grid">
+      <div class="gov-cell"><div class="k">待受理/待裁决</div>
+        <div class="v ${g.pending_arbitrate ? "warn" : ""}">${g.pending_arbitrate}</div></div>
+      <div class="gov-cell"><div class="k">商家未答辩</div>
+        <div class="v ${g.pending_defense ? "warn" : ""}">${g.pending_defense}</div></div>
+      <div class="gov-cell"><div class="k">受限/停业店铺</div>
+        <div class="v">${g.restricted_shops}</div></div>
+      <div class="gov-cell"><div class="k">待复核申诉</div>
+        <div class="v">${g.pending_appeals}</div></div>
+    </div>
+    <div class="gov-links">
+      <a href="/platform">仲裁台</a><a href="/dispute">纠纷中心</a>
+      <a href="/service">客服会话</a>
+    </div>`;
+}
+
+/* 整体重绘而不是增量追加。
+
+   踩过的坑：原来是"比对气泡数量，多出来的追加渲染"。
+   但系统消息（"某某已接入"）不渲染成气泡，服务端消息数永远比气泡数多，
+   于是每次轮询都会把最后几条消息再追加一遍——对话里出现重复回复。
+   改成按消息 id 序列做签名，签名变了才重绘，逻辑上不可能重复。 */
+async function refresh() {
+  if (!SID) return;
+  let d;
+  try { d = await api("/api/cs/sessions/" + SID, { quiet: true }); } catch (e) { return; }
+  const sig = d.messages.map(m => m.id).join(",");
+  const first = SIG === "";
+  // 空会话也要画一次：原来只在"签名变了"时重绘，而新会话的签名和初始值都是空串，
+  // 于是引导语永远不出现，窗口看起来是白板——用户以为系统没加载出来。
+  if (sig !== SIG || first) {
+    SIG = sig;
+    const box = $("#phBody");
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+    box.innerHTML = `<div class="sysline">${esc(((BOARD || {}).ui || {}).greet || "")}</div>`;
+    d.messages.forEach(m => {
+      if (m.role === "system") addTip(m.content);
+      else if (m.role === "buyer") bubble("buyer", m.content, null, m);
+      else if (m.role === "agent") bubble("agent", m.content, { source: "human" }, m);
+      else bubble("bot", m.content, { source: m.source, score: m.score, latency_ms: m.latency_ms }, m);
+    });
+    if (atBottom || first) box.scrollTop = box.scrollHeight;
+  }
+  DISPUTE = d.dispute || null;
+  setStatus(d.session.status === "agent" ? "human"
+            : d.session.status === "escalated" ? "escalated" : "bot");
+  if (d.session.status === "agent") startPoll();
+}
+
+function addTip(t) {
+  const d = document.createElement("div");
+  d.className = "sysline"; d.textContent = t;
+  $("#phBody").appendChild(d);
+  $("#phBody").scrollTop = $("#phBody").scrollHeight;
+}
+
+function bubble(role, text, meta, msg) {
+  const isMe = role === "buyer";
+  const av = isMe ? "我" : role === "agent" ? "人" : "AI";
+  const cls = isMe ? "me" : role === "agent" ? "human" : "bot";
+  const txt = role === "agent" ? "b-txt from-human" : "b-txt";
+  // 三方同框时靠 sender_role 标清"谁在说话"：买家 / 商家客服 / 平台运营 / 智能客服
+  const who = msg ? senderTag(msg) : (isMe ? "我" : role === "agent" ? "人工客服" : "智能客服");
+  let tags = "";
+  if (meta && meta.source) {
+    const k = meta.source;
+    const s = SRC_CN[k] || k;
+    tags = `<span class="tag ${esc(k)}">${esc(s)}${meta.score ? " " + Number(meta.score).toFixed(3) : ""}</span>`;
+  }
+  const el = document.createElement("div");
+  el.className = "b" + (isMe ? " r" : "");
+  el.innerHTML = `
+    <div class="b-av ${cls}">${av}</div>
+    <div class="b-body">
+      <div class="${txt}">${esc(text)}</div>
+      <div class="b-note">${who}${tags}
+        ${meta && meta.latency_ms ? `<span>${meta.latency_ms}ms</span>` : ""}</div>
+    </div>`;
+  $("#phBody").appendChild(el);
+  $("#phBody").scrollTop = $("#phBody").scrollHeight;
+}
+
+function typing(on) {
+  let el = $("#typing");
+  if (on) {
+    if (el) return;
+    el = document.createElement("div");
+    el.id = "typing"; el.className = "b";
+    el.innerHTML = `<div class="b-av bot">AI</div>
+      <div class="b-body"><div class="b-txt typing"><i></i><i></i><i></i></div></div>`;
+    $("#phBody").appendChild(el);
+    $("#phBody").scrollTop = $("#phBody").scrollHeight;
+  } else if (el) el.remove();
+}
+
+async function send() {
+  const el = $("#phInput");
+  const t = el.value.trim();
+  if (!t || !SID) return;
+  el.value = ""; el.style.height = "auto";
+  typing(true);
+  $("#phSend").disabled = true;
+
+  let r;
+  try {
+    r = await api(`/api/cs/sessions/${SID}/messages`, { method: "POST", body: { text: t } });
+  } catch (e) {
+    typing(false); $("#phSend").disabled = false; return;
+  }
+  typing(false);
+  $("#phSend").disabled = false;
+
+  renderTrace(t, r);
+  await refresh();
+  if (!r.reply && r.source === "human") addTip("客服已接入，你的消息已转给人工");
+  if (r.handoff) startPoll();
+}
+
+function setStatus(s2) {
+  status = s2;
+  const live = $("#phLive"), st = $("#phState"), btn = $("#phEscalate");
+  const UI = (BOARD && BOARD.ui) || {};
+  if (btn) {
+    // 只有买家会话存在这条链路；提交后同一个按钮变成"查看进展"。
+    const label = ((UI.actions || []).find(a => a.kind === "escalate") || {}).label
+                  || "平台介入";
+    btn.textContent = s2 === "escalated" ? "查看进展" : label;
+  }
+  // 状态文案也来自板块配置：以前这里硬编码"机器人 · 秒回"，
+  // 治理板块发完第一条消息，头顶的"规范库 · 在线"就被冲掉了。
+  const map = UI.states || {};
+  st.textContent = map[s2] || map.bot || st.textContent;
+  live.style.background = s2 === "escalated" ? "#fbbf24"
+                        : s2 === "human" ? "#34d399" : "#34d399";
+}
+
+/* 会话 → 平台介入。买家直接在这里发起，不用跳到纠纷中心重填一遍：
+   类型、诉求原文、关联订单都从当前会话带过去。 */
+async function escRequest() {
+  if (!SID) { location.href = "/dispute?new=1"; return; }
+  if (DISPUTE) { location.href = `/dispute?id=${DISPUTE.id}`; return; }
+
+  let pre = null;
+  try { pre = await api(`/api/cs/sessions/${SID}/prefill`, { quiet: true }); } catch (e) {}
+  if (!pre) return;
+  let meta = { types: [] }, orders = { items: [] };
+  try { meta = await api("/api/gov/meta", { quiet: true }); } catch (e) {}
+  if (pre.shop_id) {
+    try { orders = await api(`/api/gov/orders?shop_id=${pre.shop_id}`, { quiet: true }); } catch (e) {}
+  }
+  const items = orders.items || [];
+
+  const mask = document.createElement("div");
+  mask.className = "modal-mask";
+  mask.innerHTML = `
+    <div class="modal" style="width:460px;max-width:94vw">
+      <div class="modal-head">申请平台介入</div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+        <div class="field">
+          <label>问题类型</label>
+          <select class="select" id="cType">
+            ${(meta.types || []).map(t =>
+              `<option value="${t.key}" ${t.key === pre.dtype ? "selected" : ""}>${esc(t.label)}</option>`
+            ).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>关联订单</label>
+          <select class="select" id="cOrder">
+            <option value="">不关联订单</option>
+            ${items.map(o => `<option value="${esc(o.order_no)}" data-amt="${o.amount}">
+              ${esc(o.item_title || o.order_no)} · ¥${o.amount.toFixed(2)} · ${esc(o.order_no)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>要求退款金额（元）</label>
+          <input class="input" id="cAmount" type="number" step="0.01" value="0">
+        </div>
+        <div class="field">
+          <label>你要向平台说明的情况</label>
+          <textarea class="input" id="cClaim" rows="6">${esc(pre.transcript || "")}</textarea>
+        </div>
+        <div class="hint" style="line-height:1.7">
+          你和客服的完整对话会自动提交给平台。商品实拍、检测报告等实物凭证，
+          提交后可在「纠纷中心」补传。
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-no>再想想</button>
+        <button class="btn btn-primary" data-yes>提交平台介入</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  const close = () => mask.remove();
+  mask.addEventListener("click", e => {
+    if (e.target === mask || e.target.hasAttribute("data-no")) close();
+  });
+  $("#cOrder", mask).onchange = () => {
+    const op = $("#cOrder", mask).selectedOptions[0];
+    const amt = Number((op && op.dataset.amt) || 0);
+    if (amt > 0) $("#cAmount", mask).value = amt.toFixed(2);
+  };
+
+  mask.querySelector("[data-yes]").onclick = async () => {
+    const btn = mask.querySelector("[data-yes]");
+    btn.disabled = true; btn.textContent = "提交中…";
+    const orderNo = $("#cOrder", mask).value;
+    try {
+      const r = await api(`/api/cs/sessions/${SID}/escalate`, {
+        method: "POST",
+        body: {
+          dtype: $("#cType", mask).value,
+          order_no: orderNo,
+          claim_amount: Number($("#cAmount", mask).value || 0),
+          claim: $("#cClaim", mask).value.trim(),
+          evidence: orderNo ? [{ k: "订单截图", v: `${orderNo}（平台订单库核验）` }] : [],
+        },
+      });
+      close();
+      toast(r.exists ? "该会话已经提交过，正在平台处理中"
+                     : `已提交：${r.dispute_no}，平台会尽快处理`, "ok", 4000);
+      await refresh();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "提交平台介入";
+    }
+  };
+}
+
+/* 转人工后轮询坐席回复 */
+function startPoll() {
+  if (polling) return;
+  polling = setInterval(() => {
+    if (document.hidden) return;
+    refresh();
+  }, 3000);
+}
+
+/* ---------------- 链路渲染 ---------------- */
+function renderTrace(q, r) {
+  const box = $("#trBody");
+  const layers = (r.trace && r.trace.layers) || [];
+  const step = (no, title, state, detail) => `
+    <div class="step ${state}">
+      <div class="step-no">${no}</div>
+      <div class="step-main">
+        <div class="step-title">${esc(title)}
+          <span class="res ${state === "hit" ? "hit" : state === "miss" ? "miss" : "skip"}">
+            ${state === "hit" ? "命中" : state === "miss" ? "未命中" : "跳过"}</span></div>
+        ${detail ? `<div class="step-detail">${detail}</div>` : ""}
+      </div>
+    </div>`;
+
+  let html = `<div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px">
+      提问：<b style="color:var(--text)">${esc(q)}</b></div>`;
+
+  const L = {};
+  layers.forEach(x => L[x.layer] = x);
+
+  // 带单核查不走四级漏斗：事实取订单库、条款取规则库原文，既不检索也不调模型。
+  // 硬套四级会显示"四层全跳过"，看起来像什么都没做——比不显示更误导。
+  const cb = L["case_brief"];
+  if (cb) {
+    box.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px">
+        核查：<b style="color:var(--text)">${esc(cb.dispute_no || "")}</b></div>
+      <div class="step hit">
+        <div class="step-no">单</div>
+        <div class="step-main">
+          <div class="step-title">带单核查 <span class="res hit">命中</span></div>
+          <div class="step-detail">${esc(cb.note || "")}</div>
+        </div>
+      </div>
+      <div class="legend2">
+        <span>总耗时 <b style="color:var(--text)">0 ms</b></span>
+        <span>结果 <b style="color:var(--text)">带单核查</b></span>
+        <span>结论 <b style="color:var(--text)">不在本板块给出</b></span>
+      </div>`;
+    return;
+  }
+
+  // ① Redis
+  const rd = L["redis"];
+  html += step("①", "Redis 精确缓存", rd ? (rd.hit ? "hit" : "miss") : "skip",
+    rd ? (rd.hit ? `key <code>${esc((rd.key || "").slice(0, 28))}…</code> · 直接返回`
+                 : `key <code>${esc((rd.key || "").slice(0, 28))}…</code> · 无此问题`) : "");
+
+  // ② 知识库
+  const fq = L["faq_bm25"];
+  let fdet = "";
+  if (fq && fq.top && fq.top.length) {
+    fdet = fq.top.slice(0, 3).map((t, i) =>
+      `${i === 0 ? "" : "· "}${esc(t.q)} <b style="color:${t.sim >= fq.threshold ? "var(--ok)" : "var(--text-2)"}">
+        ${Number(t.sim).toFixed(3)}</b>`).join("<br>") +
+      `<br>阈值 ${fq.threshold} · 覆盖率 cov ${fq.top[0].cov}
+       · BM25 强度 ${fq.top[0].sat}`;
+  }
+  const audLabel = { buyer: "店铺知识库", merchant: "规则库", ops: "规范库" };
+  const aud = (fq && fq.audience) || (BOARD && BOARD.audience) || "buyer";
+  html += step("②", "MySQL " + (audLabel[aud] || "知识库") + " · BM25",
+               fq ? (fq.hit ? "hit" : "miss") : "skip", fdet);
+
+  // ③ 大模型
+  const lm = L["llm"];
+  html += step("③", "大模型生成", lm ? (lm.hit ? "hit" : "miss") : "skip",
+    lm ? (lm.hit ? `模型 ${esc((lm.meta || {}).model || "")} · ${((lm.meta || {}).ms || 0)}ms`
+                 : `未调用或调用失败：${esc((lm.meta || {}).error || "handoff")}`) : "");
+
+  // ④ 人工
+  const hd = L["handoff"] || L["force_handoff"];
+  const tk = L["human_takeover"];
+  html += step("④", "人工兜底", (hd || tk) ? "hit" : "skip",
+    hd ? `工单 #${hd.ticket_id}${hd.reason ? " · " + esc(hd.reason) : ""}` :
+    tk ? "会话已由人工接管" : "机器人独立应答，无需人工");
+
+  const cost = r.latency_ms || 0;
+  html += `<div class="legend2">
+      <span>总耗时 <b style="color:var(--text)">${cost} ms</b></span>
+      <span>结果 <b style="color:var(--text)">${esc(SRC_CN[r.source] || r.source)}</b></span>
+      ${r.intent ? `<span>意图 <b style="color:var(--text)">${esc(r.intent)}</b></span>` : ""}
+    </div>`;
+  box.innerHTML = html;
+}
+</script>
+</body>
+</html>
