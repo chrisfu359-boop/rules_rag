@@ -198,10 +198,13 @@ def run() -> None:
     check("订单选择器带运单号", bool(_shipped) and all(o["tracking_no"] for o in _shipped),
           f"{len(_shipped)}/{len(orders)} 已发货单带运单")
 
+    # 必须挑一笔已发货的订单：待付款/待发货单本来就没有承运商和运单号，
+    # 拿它去验「物流轨迹」等于拿空数据断言，订单列表一变就假红。
+    _pick = (_shipped or orders)[0]
     d = ops.post("/api/gov/disputes", json={
         "shop_id": 1, "dtype": "quality", "title": "【验收】商品明细核对",
         "claim": "收到的边几有裂痕", "claim_amount": 128.0,
-        "order_no": orders[0]["order_no"],
+        "order_no": _pick["order_no"],
         "evidence": [{"k": "商品实拍", "v": "边角开裂"}]}).json()
     det = ops.get(f"/api/gov/disputes/{d['id']}").json()
     od = det["order"]
