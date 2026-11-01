@@ -152,7 +152,8 @@ function render() {
 
 /* 带坐标轴/网格/数值标注的折线图（SVG，零依赖） */
 function lineChart(trend, maxAmt) {
-  const W = 760, H = 280, L = 52, R = 16, T = 16, B = 34;
+  // T 从 16 加到 40：峰值标注（y-12）需要空间，否则贴着 SVG 顶边被裁掉
+  const W = 760, H = 280, L = 52, R = 16, T = 40, B = 34;
   const n = trend.length;
   if (!n) return `<div class="empty-hint">暂无销售数据</div>`;
   const plotW = W - L - R, plotH = H - T - B;
@@ -174,10 +175,12 @@ function lineChart(trend, maxAmt) {
   const area = `M ${x(0).toFixed(1)},${y(0).toFixed(1)} L ${pts.join(" L ")} L ${x(n - 1).toFixed(1)},${y(0).toFixed(1)} Z`;
   const dots = trend.map((t, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(t.amount).toFixed(1)}" r="3.4" fill="#2b5c9b" stroke="var(--surface)" stroke-width="1.6"><title>${esc(t.date)}　${money(t.amount)}</title></circle>`).join("");
-  // 峰值标注
+  // 峰值标注：贴顶时改放点下方，避免被画布裁掉
   const peak = trend.reduce((a, b) => (b.amount > a.amount ? b : a), trend[0]);
   const pi = trend.indexOf(peak);
-  const peakLabel = `<text x="${x(pi).toFixed(1)}" y="${(y(peak.amount) - 12).toFixed(1)}" text-anchor="middle"
+  const peakY = y(peak.amount);
+  const peakLabelY = peakY - 12 < T - 6 ? peakY + 20 : peakY - 12;
+  const peakLabel = `<text x="${x(pi).toFixed(1)}" y="${peakLabelY.toFixed(1)}" text-anchor="middle"
         font-size="10.5" fill="#2b5c9b" font-weight="600">${money(peak.amount)}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
     <defs>
