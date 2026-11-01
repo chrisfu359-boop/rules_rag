@@ -1,7 +1,8 @@
 """补 11 月订单：让商家看板的「本月销售额 / 客单价」有数据。
 
-背景：历史数据只到 10-31，而系统日期是 11-01，所以本月统计直接是 0，
-演示时图表上「本月销售」「客单价」两格是空的，很难看。
+背景：历史数据只到 10-31，而系统日期是 11-01，所以本月统计直接是 0。
+注意数量要贴合真实日均：霞光历史 667 单 / 60 天 ≈ 11 单/天，
+所以 11-01 只补 12 单，补 38 单会显得假（月初第一天就抵平时三天）。
 
 用法：python tools/seed_month_orders.py
 """
@@ -75,12 +76,12 @@ def main() -> int:
         added += 1
 
     # 今天（11-01）是本月唯一一天，订单全部落在今天的不同时段
-    for i in range(38):
+    for i in range(12):
         ts = today + timedelta(hours=8, minutes=i * 18)
         add_order(MAIN_SHOP, 5 if i % 2 == 0 else None, ts,
                   random.choices(["待发货", "已发货", "已完成"], [2, 3, 5])[0])
     # 其他店铺各补几单，平台总览也好看
-    for i in range(18):
+    for i in range(4):
         ts = today + timedelta(hours=9, minutes=i * 25)
         add_order(OTHER_SHOPS[i % len(OTHER_SHOPS)], None, ts,
                   random.choices(["待发货", "已发货", "已完成"], [2, 3, 5])[0])
@@ -90,7 +91,7 @@ def main() -> int:
     c.execute("PRAGMA journal_mode=DELETE")
     total = c.execute("SELECT COUNT(*) FROM t_order").fetchone()[0]
     c.close()
-    print(f"[seed] 新增 {added} 笔 11 月订单（{MAIN_SHOP} 38 笔 + 其他店铺 18 笔）")
+    print(f"[seed] 新增 {added} 笔 11 月订单（{MAIN_SHOP} 12 笔 + 其他店铺 4 笔）")
     print(f"[seed] 当前订单总数 {total}")
     return 0
 
