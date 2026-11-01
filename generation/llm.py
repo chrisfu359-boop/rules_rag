@@ -26,6 +26,23 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def _sanitize_proxy_env() -> None:
+    """清掉 no_proxy 里会让 httpx 直接崩溃的段。
+
+    某些代理工具会把 IPv6 回环写成 `[::1]` 塞进 no_proxy，httpx 解析
+    这个格式时会抛 `InvalidURL: Invalid port: ':1]'` —— OpenAI SDK 一初始化
+    就把整个应用带崩（表现为服务起不来，日志里只有一条 httpx 堆栈）。
+    这里把带方括号的段滤掉，localhost / 127.0.0.1 仍然保留。
+    """
+    for var in ("no_proxy", "NO_PROXY"):
+        v = os.environ.get(var)
+        if not v or "[" not in v:
+            continue
+        parts = [p.strip() for p in v.split(",")
+                 if p.strip() and "[" not in p and "]" not in p]
+        os.environ[var] = ",".join(parts) or "localhost,127.0.0.1"
+
 # 各厂商预设：base_url / 默认模型 / 取 key 的环境变量名
 PROVIDERS: dict[str, tuple[str, str, str]] = {
     "deepseek":  ("https://api.deepseek.com/v1", "deepseek-chat", "DEEPSEEK_API_KEY"),
@@ -105,6 +122,7 @@ class LLMClient:
     def client(self):
         if self._client is None:
             from openai import OpenAI
+            _sanitize_proxy_env()
             # max_retries=0：重试由我们自己控制（要带上"上次编造了哪些条款号"的上下文重试），
             # SDK 内部静默重试会让超时不可预测。
             self._client = OpenAI(base_url=self.base_url, api_key=self.api_key or "ollama",

@@ -222,7 +222,7 @@
     <div class="tr-body" id="trBody">
       <div class="tr-empty">
         发一条消息，这里会显示它经过了哪几层、每一层的判断依据。<br><br>
-        <span style="font-size:11.5px">① Redis 精确缓存 　② MySQL 知识库 BM25（≥0.88）<br>③ 大模型 　④ 人工兜底</span>
+        <span style="font-size:11.5px">① Redis 精确缓存 　② MySQL 知识库 BM25（≥0.88）<br>③ RAG 条款检索（规则/治理） 　④ 大模型 　⑤ 人工兜底</span>
         <br><br><span style="font-size:11px;opacity:.8">知识域：店铺 / 平台规则 / 治理规范，互不串门</span>
       </div>
     </div>
@@ -759,16 +759,28 @@ function renderTrace(q, r) {
   html += step("②", "MySQL " + (audLabel[aud] || "知识库") + " · BM25",
                fq ? (fq.hit ? "hit" : "miss") : "skip", fdet);
 
-  // ③ 大模型
+  // ③ RAG 条款检索（规则/治理板块才有）
+  const rg = L["rag"];
+  if (rg) {
+    let rdet = "";
+    if (rg.top && rg.top.length) {
+      rdet = rg.top.slice(0, 3).map((t, i) =>
+        `${i === 0 ? "" : "· "}《${esc(t.doc)}》${esc(t.no)} <b>${Number(t.score).toFixed(3)}</b>`)
+        .join("<br>") + "<br>BM25 ∥ 向量(Milvus) → RRF → 精排";
+    }
+    html += step("③", "RAG 条款检索", rg.hit ? "hit" : "miss", rdet);
+  }
+
+  // ④ 大模型
   const lm = L["llm"];
-  html += step("③", "大模型生成", lm ? (lm.hit ? "hit" : "miss") : "skip",
+  html += step("④", "大模型生成", lm ? (lm.hit ? "hit" : "miss") : "skip",
     lm ? (lm.hit ? `模型 ${esc((lm.meta || {}).model || "")} · ${((lm.meta || {}).ms || 0)}ms`
                  : `未调用或调用失败：${esc((lm.meta || {}).error || "handoff")}`) : "");
 
-  // ④ 人工
+  // ⑤ 人工
   const hd = L["handoff"] || L["force_handoff"];
   const tk = L["human_takeover"];
-  html += step("④", "人工兜底", (hd || tk) ? "hit" : "skip",
+  html += step("⑤", "人工兜底", (hd || tk) ? "hit" : "skip",
     hd ? `工单 #${hd.ticket_id}${hd.reason ? " · " + esc(hd.reason) : ""}` :
     tk ? "会话已由人工接管" : "机器人独立应答，无需人工");
 

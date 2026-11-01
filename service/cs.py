@@ -230,7 +230,8 @@ def _ctx(cands: list[dict], limit: int = 3) -> str:
 
 
 def llm_reply(text: str, cands: list[dict], shop: str = "本店",
-              scope: str = "shop") -> tuple[str | None, bool, dict]:
+              scope: str = "shop",
+              clauses: list[dict] | None = None) -> tuple[str | None, bool, dict]:
     """返回 (回复, 是否要求转人工, 元信息)。任何异常都不抛，返回 None 交给上层兜底。"""
     llm = get_llm()
     if not llm.available():
@@ -253,7 +254,18 @@ def llm_reply(text: str, cands: list[dict], shop: str = "本店",
                  f"消费者权益保护法 24/25/44/55 条。引用时写法律名 + 条号。")
         ask = "【运营问题】"
 
-    user = f"【知识库】\n{_ctx(cands)}\n\n{extra}\n\n{ask}\n{text}\n\n请按 JSON 输出。"
+    # 规则/治理板块把 RAG 召回的条款原文也塞进去：
+    # 只给"规则摘要"时模型只能背扣分数值，给不了条号与依据；
+    # 商家真正要的是"哪一条、怎么写的"，所以必须回到 406 条条款本体。
+    clause_block = ""
+    if scope in ("rule", "gov") and clauses:
+        lines = []
+        for i, c in enumerate(clauses[:3], 1):
+            lines.append(f"[{i}] 《{c.get('doc_name')}》{c.get('clause_no')}"
+                         f"\n{str(c.get('content') or '')[:400]}")
+        clause_block = "【条款原文】\n" + "\n\n".join(lines) + "\n\n"
+
+    user = f"【知识库】\n{_ctx(cands)}\n\n{clause_block}{extra}\n\n{ask}\n{text}\n\n请按 JSON 输出。"
     msgs = [{"role": "system", "content": CS_SYSTEM.get(scope, CS_SYSTEM["shop"]).format(shop=shop)},
             {"role": "user", "content": user}]
     out, meta = llm.chat(msgs, temperature=0.3, max_tokens=300)
@@ -511,6 +523,26 @@ def handle(sid: str, text: str, sender_role: str = "buyer") -> dict:
                  "cov": c["cov"], "sat": c["sat"]} for c in cands[:3]],
     })
 
+    # ➁.5 RAG 条款检索（规则/治理板块）。
+    # MySQL FAQ 只是"高频问答对"，覆盖不了 406 条条款里的专业判断；
+    # 商家问的绝大多数是"哪一条法规怎么写的"，答案必须回到条款本体。
+    # 这里复用 qa 的混合检索器 = BM25 ∥ 向量(Milvus) → RRF → 精排，与 /api/ask 同一条链路。
+    rag_hits: list[dict] = []
+    if scope in ("rule", "gov"):
+        try:
+            from service import qa as _qa
+            if getattr(_qa.RT, "index", None) is not None:
+                rag_hits = [{**d, "score": s}
+                            for d, s in _qa.RT.index.search(q, top_k=3, scene=None)]
+        except Exception:
+            rag_hits = []
+        trace["layers"].append({
+            "layer": "rag", "hit": bool(rag_hits),
+            "top": [{"doc": c.get("doc_name"), "no": c.get("clause_no"),
+                     "score": round(float(c.get("score") or 0), 4)}
+                    for c in rag_hits[:3]],
+        })
+
     if best:
         lat = int((time.time() - t0) * 1000)
         _push(sid, "bot", best["answer"], source="faq", score=best["sim"],
@@ -534,7 +566,7 @@ def handle(sid: str, text: str, sender_role: str = "buyer") -> dict:
     except Exception:
         pass
 
-    reply, handoff, meta = llm_reply(q, cands, shop, scope)
+    reply, handoff, meta = llm_reply(q, cands, shop, scope, rag_hits)
     trace["layers"].append({"layer": "llm", "hit": bool(reply), "handoff": handoff,
                             "meta": meta})
 
