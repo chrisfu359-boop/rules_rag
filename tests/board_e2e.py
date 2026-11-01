@@ -42,7 +42,7 @@ def wait_up(timeout: int = 90) -> bool:
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            if httpx.get(f"{BASE}/api/health", timeout=2).status_code == 200:
+            if httpx.get(f"{BASE}/api/health", timeout=2, trust_env=False).status_code == 200:
                 return True
         except Exception:
             pass
@@ -65,7 +65,7 @@ def _clean_redis() -> None:
 
 
 def login(username: str, pwd: str) -> httpx.Client:
-    c = httpx.Client(base_url=BASE, timeout=30)
+    c = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     r = c.post("/api/auth/login", json={"username": username, "password": pwd})
     if r.status_code != 200:
         raise SystemExit(f"登录失败 {username}: {r.status_code} {r.text[:80]}")

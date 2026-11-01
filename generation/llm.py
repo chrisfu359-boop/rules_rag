@@ -171,7 +171,43 @@ def get_llm() -> LLMClient:
 
 # ---------------- prompt 构造 ----------------
 
-def build_context(clauses: list[dict], limit_chars: int = 400) -> str:
+# ---------------- 上下文窗口 / 摘要压缩 ----------------
+
+# 固定上下文预算（字符数，约等于 token 的 2 倍）：system 之外，
+# 条款 + 历史 + 问题必须塞进这个预算，否则先缩条款。
+CONTEXT_WINDOW_CHARS = 6000
+CLAUSE_LIMIT_CHARS = 400      # 单条条款进入提示词的最大长度
+HISTORY_MSG_CHARS = 200       # 历史单条最大长度
+RECENT_ROUNDS = 4             # 最近 N 轮逐字保留，更早的压成摘要
+SUMMARY_MAX_CHARS = 300       # 早期摘要上限
+
+
+def summarize_history(history: list[dict] | None,
+                      keep_rounds: int = RECENT_ROUNDS) -> tuple[str, list[dict]]:
+    """把历史拆成「早期摘要 + 最近若干轮」。
+
+    只截断不压缩的问题：10 轮 × 2 条 × 200 字 = 4000 字，会把条款上下文挤爆；
+    直接丢掉早期轮次，模型又会忘记用户最初问的是什么。
+    这里用确定性的抽取式摘要（问什么/答了什么各留 60 字），零模型调用、零成本。
+    """
+    if not history:
+        return "", []
+    msgs = [h for h in history
+            if (h or {}).get("role") in ("user", "assistant")
+            and str((h or {}).get("content") or "").strip()]
+    keep = keep_rounds * 2
+    if len(msgs) <= keep:
+        return "", msgs
+    old, recent = msgs[:-keep], msgs[-keep:]
+    lines = []
+    for h in old:
+        tag = "问" if h["role"] == "user" else "答"
+        txt = str(h["content"]).strip().replace("\n", " ")
+        lines.append(f"{tag}：{txt[:60]}")
+    return ("【早期对话摘要】" + "；".join(lines))[:SUMMARY_MAX_CHARS], recent
+
+
+def build_context(clauses: list[dict], limit_chars: int = CLAUSE_LIMIT_CHARS) -> str:
     """条款拼装。带上法规名+条款号+生效日期：模型需要"这条属于哪部法"这个信号，
     否则会把《广告法》的绝对化用语要求套到《电商法》头上。"""
     parts = []
@@ -184,35 +220,49 @@ def build_context(clauses: list[dict], limit_chars: int = 400) -> str:
     return "\n\n".join(parts)
 
 
-# 多轮记忆里每条历史消息的最大长度：历史只是帮助理解指代，不能把条款上下文挤出去。
-HISTORY_MSG_CHARS = 200
+def _risk_hint(risk_level: str) -> str:
+    if risk_level == "L3":
+        return "\n\n注意：本次问题被判定为 L3 高风险（涉及处罚金额或法律定性），handoff 必须为 true，不要给结论。"
+    if risk_level == "L2":
+        return "\n\n注意：本次问题涉及时限，若条款之间存在版本差异必须指出，handoff 设为 true。"
+    return ""
+
+
+def _assemble(ctx: str, summary: str, recent: list[dict], query: str, extra: str) -> list[dict]:
+    user = (f"【条款】\n{ctx}\n\n"
+            f"【商家问题】\n{query}\n"
+            f"{extra}\n"
+            f"请严格按 JSON 格式输出。")
+    msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if summary:
+        # 摘要作为一条单独的 user 消息：模型把它当"之前聊过什么"的背景。
+        msgs.append({"role": "user", "content": summary})
+    for h in recent:
+        msgs.append({"role": h["role"], "content": str(h["content"]).strip()[:HISTORY_MSG_CHARS]})
+    msgs.append({"role": "user", "content": user})
+    return msgs
 
 
 def build_messages(query: str, clauses: list[dict], risk_level: str,
                    scene: str | None = None,
                    history: list[dict] | None = None) -> list[dict]:
-    ctx = build_context(clauses)
-    extra = ""
-    if risk_level == "L3":
-        extra = "\n\n注意：本次问题被判定为 L3 高风险（涉及处罚金额或法律定性），handoff 必须为 true，不要给结论。"
-    elif risk_level == "L2":
-        extra = "\n\n注意：本次问题涉及时限，若条款之间存在版本差异必须指出，handoff 设为 true。"
-    user = (f"【条款】\n{ctx}\n\n"
-            f"【商家问题】\n{query}\n"
-            f"{extra}\n"
-            f"请严格按 JSON 格式输出。")
+    """拼 prompt，并保证整体不超过 CONTEXT_WINDOW_CHARS。
 
-    msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
-    # 多轮记忆：把最近几轮 user/assistant 消息作为上下文塞进去，
-    # 让模型理解"那运费呢""这样能退吗"这类指代/省略主语。
-    # 每条截断到 HISTORY_MSG_CHARS，避免历史把条款上下文挤出去。
-    if history:
-        for h in history:
-            role = (h or {}).get("role")
-            content = str((h or {}).get("content") or "").strip()
-            if role in ("user", "assistant") and content:
-                msgs.append({"role": role, "content": content[:HISTORY_MSG_CHARS]})
-    msgs.append({"role": "user", "content": user})
+    超预算时优先缩短「单条条款」：历史只有几十字，条款才是大头；
+    条款短到 120 字还不够，才退化成少带一条。
+    """
+    summary, recent = summarize_history(history)
+    extra = _risk_hint(risk_level)
+    limit = CLAUSE_LIMIT_CHARS
+    msgs = _assemble(build_context(clauses, limit), summary, recent, query, extra)
+    while sum(len(m["content"]) for m in msgs) > CONTEXT_WINDOW_CHARS:
+        if limit > 120:
+            limit = max(120, limit - 80)
+        elif len(clauses) > 1:
+            clauses = clauses[:-1]
+        else:
+            break
+        msgs = _assemble(build_context(clauses, limit), summary, recent, query, extra)
     return msgs
 
 

@@ -45,13 +45,30 @@ def detect(query: str) -> dict:
     return {"scene": best, "state_in": state, "actor": actor, "scene_hits": best_hit}
 
 
+def _bert_risk(query: str) -> str | None:
+    """BERT 风险分类器；没装 torch / 没训练模型时返回 None，全部走规则。"""
+    try:
+        from nlp.bert_classifier import predict
+        return predict(query)
+    except Exception:
+        return None
+
+
 def risk(query: str, order: dict | None = None) -> tuple[str, str]:
+    # ① L3 是安全线：规则命中必须转人工，绝不交给模型兜底
     if any(k in query for k in L3_KW):
         return "L3", "涉及处罚金额/法律定性，超出 AI 可答范围"
+    # ② BERT 分类器主判（蒸馏自规则，泛化更好）
+    bv = _bert_risk(query)
+    if bv == "L3":
+        return "L3", "BERT 判定涉及处罚金额/法律定性，超出 AI 可答范围"
+    # ③ 时限/售后状态仍按规则判 L2：这两类靠关键词和订单态比模型更准
     if any(k in query for k in L2_KW):
         return "L2", "涉及时限，需给条款原文并提示以平台最新公告为准"
     if order and order.get("aftersale_type"):
         return "L2", "涉及售后处理时效"
+    if bv == "L2":
+        return "L2", "BERT 判定涉及时限或需给条款原文核验"
     return "L1", "定义/原则类问题，可直接依据条款回答"
 
 

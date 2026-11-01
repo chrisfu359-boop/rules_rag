@@ -37,7 +37,7 @@ def wait_up(timeout: int = 90) -> bool:
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            r = httpx.get(f"{BASE}/api/health", timeout=2)
+            r = httpx.get(f"{BASE}/api/health", timeout=2, trust_env=False)
             if r.status_code == 200:
                 return True
         except Exception:
@@ -99,11 +99,11 @@ def main() -> int:
 
 
 def run() -> None:
-    c = httpx.Client(base_url=BASE, timeout=30)
+    c = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     print("\n[1] 登录与鉴权")
     r = c.post("/api/auth/login", json={"username": "fengxia", "password": "123456"})
     check("商家登录", r.status_code == 200, f"HTTP {r.status_code}")
-    anon = httpx.Client(base_url=BASE, timeout=10)
+    anon = httpx.Client(base_url=BASE, timeout=10, trust_env=False)
     check("未登录访问会话列表返回 401",
           anon.get("/api/cs/sessions").status_code == 401)
 
@@ -160,7 +160,7 @@ def run() -> None:
           f"status={dist.json().get('status')}")
 
     # 沉淀审核流：待审条目不进检索，ops 过审后才 enabled 进索引
-    opc = httpx.Client(base_url=BASE, timeout=30)
+    opc = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     opc.post("/api/auth/login", json={"username": "ops", "password": "Ops@12345"})
     pend = opc.get("/api/cs/faq/pending").json()
     check("运营能看到待审队列", pend["total"] >= 1, f"total={pend['total']}")
@@ -205,7 +205,7 @@ def run() -> None:
           f"source={hit2['source']} score={hit2['score']}")
 
     # 运营手动建条目直接生效（有审核权），这是唯一"建了就进检索"的正规入口
-    opc2 = httpx.Client(base_url=BASE, timeout=30)
+    opc2 = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     opc2.post("/api/auth/login", json={"username": "ops", "password": "Ops@12345"})
     newf_ops = opc2.post("/api/cs/faq", json={
         "question": "支持花呗分期吗",
@@ -223,7 +223,7 @@ def run() -> None:
     check("修改后版本号递增", c.get("/api/cs/faq").json()["version"] > 0)
 
     print("\n[5] 权限隔离")
-    m2 = httpx.Client(base_url=BASE, timeout=30)
+    m2 = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     m2.post("/api/auth/login", json={"username": "xumeng", "password": "123456"})
     r404 = m2.get(f"/api/cs/sessions/{sid}")
     check("另一商家访问他人会话返回 404（不是 403）", r404.status_code == 404,
@@ -240,7 +240,7 @@ def run() -> None:
           f"{m['auto_resolve_rate'] * 100:.1f}% | 待处理工单 {m['ticket_pending']}")
 
     print("\n[7] 会话转平台介入")
-    buyer = httpx.Client(base_url=BASE, timeout=30)
+    buyer = httpx.Client(base_url=BASE, timeout=30, trust_env=False)
     buyer.post("/api/auth/login", json={"username": "lichen", "password": "123456"})
     shops = buyer.get("/api/gov/meta").json()["shops"]
     shop = [x for x in shops if x["name"] == "梦境数码专营店"][0]

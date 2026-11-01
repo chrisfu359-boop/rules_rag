@@ -30,3 +30,6 @@ data/raw/_probe_wx.html
 dist/
 # 运行时告警日志（reports/alerts.log 由流水线写，不进版本库）
 reports/alerts.log
+
+# BERT 分类器权重（409MB，由 pipeline/train_bert_risk.py 训练产出，不进版本库）
+models/

@@ -38,7 +38,7 @@ QUERIES = [
 def wait_up(timeout: int = 90) -> bool:
     for _ in range(timeout):
         try:
-            if httpx.get(f"{BASE}/api/health", timeout=2).status_code == 200:
+            if httpx.get(f"{BASE}/api/health", timeout=2, trust_env=False).status_code == 200:
                 return True
         except Exception:
             pass
@@ -70,7 +70,7 @@ def main() -> int:
             q = QUERIES[i % len(QUERIES)]
             t0 = time.time()
             try:
-                r = httpx.post(f"{BASE}/api/ask", json={"query": q}, timeout=30)
+                r = httpx.post(f"{BASE}/api/ask", json={"query": q}, timeout=30, trust_env=False)
                 return time.time() - t0, r.status_code
             except Exception:
                 return time.time() - t0, -1

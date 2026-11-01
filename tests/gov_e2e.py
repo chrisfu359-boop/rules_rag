@@ -39,7 +39,7 @@ def wait_up(timeout: int = 120) -> bool:
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            if httpx.get(f"{BASE}/api/health", timeout=2).status_code == 200:
+            if httpx.get(f"{BASE}/api/health", timeout=2, trust_env=False).status_code == 200:
                 return True
         except Exception:
             pass
@@ -50,7 +50,7 @@ def wait_up(timeout: int = 120) -> bool:
 def login(name: str) -> httpx.Client:
     """种子账号的口令：商家 123456、运营 Ops@12345、管理员 Admin@12345。
     旧库可能还是早期的 123456，一并试掉，免得换个环境就跑不起来。"""
-    c = httpx.Client(base_url=BASE, timeout=40)
+    c = httpx.Client(base_url=BASE, timeout=40, trust_env=False)
     for pw in ("123456", "Ops@12345", "Admin@12345", "123456"):
         r = c.post("/api/auth/login", json={"username": name, "password": pw})
         if r.status_code == 200:
@@ -106,7 +106,7 @@ def run() -> None:
     m = login("fengxia")           # 商家（店铺 1）
     m2 = login("xumeng")           # 另一商家（店铺 2），用于越权测试
     ops = login("ops")             # 平台运营
-    anon = httpx.Client(base_url=BASE, timeout=10)
+    anon = httpx.Client(base_url=BASE, timeout=10, trust_env=False)
 
     print("\n[1] 鉴权与权限边界")
     check("匿名访问纠纷列表返回 401",
