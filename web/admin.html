@@ -108,6 +108,7 @@
               <input class="input" id="uq" placeholder="搜索用户名/邮箱/昵称" style="width:220px;height:32px">
               <select class="select" id="urole" style="width:auto;height:32px">
                 <option value="">全部角色</option>
+                <option value="buyer">买家</option>
                 <option value="merchant">商家</option>
                 <option value="ops">平台运营</option>
                 <option value="admin">管理员</option>
@@ -334,6 +335,7 @@ async function loadUsers() {
       <td style="text-align:right">
         <div class="row" style="justify-content:flex-end;gap:5px">
           <select class="select" data-role="${u.id}" style="height:26px;width:auto;font-size:12px;padding:0 5px">
+            <option value="buyer" ${u.role === "buyer" ? "selected" : ""}>买家</option>
             <option value="merchant" ${u.role === "merchant" ? "selected" : ""}>商家</option>
             <option value="ops" ${u.role === "ops" ? "selected" : ""}>运营</option>
             <option value="admin" ${u.role === "admin" ? "selected" : ""}>管理员</option>
